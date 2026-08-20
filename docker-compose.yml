@@ -1,0 +1,43 @@
+services:
+  scanner:
+    build:
+      context: ./scanner
+    image: api-ac-scanner-scanner
+    container_name: ac-scanner
+    expose:
+      - "8001"
+    volumes:
+      # Share uploaded sources so the scanner can read + apply fixes
+      - ./web/uploads:/uploads
+    networks:
+      - acnet
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+    image: api-ac-scanner-web
+    container_name: ac-web
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - SCANNER_URL=http://scanner:8001
+      - DATA_DIR=/data
+      - UPLOAD_ROOT=/uploads
+      - SESSION_SECRET=change-me-in-prod
+    volumes:
+      # Persist scan records + uploaded (scanned) sources
+      - ./web/data:/data
+      - ./web/uploads:/uploads
+      # Share the scanner's fixer module so the web layer can preview fixes
+      - ./scanner/app:/scanner/app:ro
+    depends_on:
+      - scanner
+    networks:
+      - acnet
+    restart: unless-stopped
+
+networks:
+  acnet:
+    driver: bridge

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scan Domain — API AC Scanner</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">⛨</span><span class="brand-text">api-<b>ac</b>-scanner</span></div>
+    <nav class="nav"><a href="/">Home</a><a href="/scan/source">Scan Source</a><a href="/scan/domain">Scan Domain</a></nav>
+  </header>
+  <main class="container narrow">
+    <h1>Scan a live domain</h1>
+    <p class="sub">Black-box read-only scan. We probe for BOLA/BFLA by attempting object/endpoint
+      access and observing responses. <b>Mutations are flagged, never executed</b> in read-only mode.</p>
+
+    <form action="/scan/domain/run" method="post" class="form">
+      <label class="field">
+        <span class="field-label">Target URL (https://api.example.com)</span>
+        <input type="text" name="target" placeholder="https://api.example.com" required />
+      </label>
+      <label class="field">
+        <span class="field-label">Auth token (optional)</span>
+        <input type="text" name="authToken" placeholder="Bearer token for a normal user" />
+        <span class="hint">Used to test whether a normal user can reach privileged objects.</span>
+      </label>
+      <label class="field">
+        <span class="field-label">Second-user token (optional, for BOLA swap test)</span>
+        <input type="text" name="altToken" placeholder="Token of a different/lower-privilege user" />
+        <span class="hint">The scanner requests the SAME object with this token. If the body comes back identical, ownership is not enforced (BOLA).</span>
+      </label>
+      <label class="field">
+        <span class="field-label">Custom object URLs (optional, comma or newline separated)</span>
+        <input type="text" name="objectUrls" placeholder="https://api.example.com/api/orders/1001" />
+        <span class="hint">Override the default object-id probes. We swap between your normal and second-user token on these.</span>
+      </label>
+      <label class="consent">
+        <input type="checkbox" required />
+        <span>I am authorized to test this target / it is my own asset.</span>
+      </label>
+      <button class="btn btn-primary" type="submit">Run domain scan</button>
+    </form>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

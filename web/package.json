@@ -1,0 +1,32 @@
+{
+  "name": "api-ac-scanner-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web UI + dashboard for the API Access-Control vulnerability scanner",
+  "type": "commonjs",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ejs": "^3.1.10",
+    "multer": "^1.4.5-lts.1",
+    "express-session": "^1.18.0",
+    "cookie-parser": "^1.4.7",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "ts-node": "^10.9.2",
+    "@types/express": "^4.17.21",
+    "@types/express-session": "^1.18.0",
+    "@types/multer": "^1.4.12",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/node-fetch": "^2.6.11",
+    "@types/node": "^22.5.4"
+  }
+}

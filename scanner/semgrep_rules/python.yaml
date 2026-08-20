@@ -1,0 +1,119 @@
+rules:
+  - id: python-bola-object
+    severity: ERROR
+    languages: [python]
+    mode: taint
+    message: >
+      Possible BOLA: a request-supplied object id reaches a database lookup
+      without an ownership/permission check. Verify the caller owns the object.
+    metadata:
+      owasp: "API1:2023 Broken Object Level Authorization"
+      cwe: "CWE-639"
+      cvss: "9.1"
+    pattern-sources:
+      - pattern: request.args.get(...)
+      - pattern: request.args[...]
+      - pattern: request.json[...]
+      - pattern: request.json.get(...)
+      - pattern: request.form[...]
+      - pattern: request.form.get(...)
+      - pattern: request.values.get(...)
+      - pattern: request.view_args[...]
+      - pattern: request.view_args.get(...)
+    pattern-sinks:
+      - pattern: $MODEL.query.filter_by(...).first()
+      - pattern: $MODEL.query.get(...)
+      - pattern: $MODEL.query.filter(...).first()
+      - pattern: $MODEL.query.filter_by(...)
+      - pattern: $DB.get(...)
+    pattern-sanitizers:
+      - pattern: current_user
+      - pattern: check_ownership(...)
+      - pattern: verify_owner(...)
+
+  - id: python-mass-assignment
+    severity: ERROR
+    languages: [python]
+    mode: taint
+    message: >
+      Possible Mass Assignment: raw request JSON is passed directly into a model
+      constructor / deserializer. Use an explicit schema with an allowlist.
+    metadata:
+      owasp: "API3/A08:2021 Mass Assignment"
+      cwe: "CWE-915"
+      cvss: "8.1"
+    pattern-sources:
+      - pattern: request.get_json()
+      - pattern: request.json
+      - pattern: request.form
+    pattern-sinks:
+      - pattern: $MODEL(**$X)
+      - pattern: schema.load(...)
+      - pattern: $MODEL.create(...)
+    pattern-sanitizers:
+      - pattern: load_only(...)
+      - pattern: Schema(only=...)
+      - pattern: sanitize(...)
+
+  # ---- BFLA: state-changing Flask handler without role/admin check ----
+  - id: python-bfla-missing-guard
+    severity: ERROR
+    languages: [python]
+    message: >
+      Possible BFLA: a state-changing Flask route handler performs writes without
+      a role/admin authorization check.
+    metadata:
+      owasp: "API5:2023 Broken Function Level Authorization"
+      cwe: "CWE-862"
+      cvss: "8.1"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @app.route(..., methods=["POST"])
+              def $F(...) :
+                ...
+                $MODEL.create(...)
+          - pattern: |
+              @app.route(..., methods=["DELETE"])
+              def $F(...) :
+                ...
+                $MODEL.delete(...)
+          - pattern: |
+              @app.route(..., methods=["PUT"])
+              def $F(...) :
+                ...
+                $MODEL.update(...)
+      - pattern-not: current_user.is_admin
+      - pattern-not: check_role(...)
+      - pattern-not: authorize(...)
+      - pattern-not: require_admin(...)
+    fix: >
+      Enforce a function-level admin/role check at the top of the handler, e.g.
+      `if not current_user.is_admin: abort(403)`
+
+  # ---- API4: no rate limiting on a sensitive Flask route ----
+  - id: python-no-rate-limit
+    severity: WARNING
+    languages: [python]
+    message: >
+      Possible API4: a Flask route is defined without a rate limiter.
+    metadata:
+      owasp: "API4:2023 Unrestricted Resource Consumption"
+      cwe: "CWE-770"
+      cvss: "5.3"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @app.route(..., methods=["POST"])
+              def $F(...) : ...
+          - pattern: |
+              @app.route(..., methods=["PUT"])
+              def $F(...) : ...
+          - pattern: |
+              @app.route(..., methods=["DELETE"])
+              def $F(...) : ...
+      - pattern-not: limiter.limit(...)
+      - pattern-not: "@limiter.limit"
+    fix: >
+      Add Flask-Limiter to the route, e.g. `@app.route(...); @limiter.limit("10/minute")`
+

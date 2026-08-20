@@ -1,0 +1,112 @@
+rules:
+  # ---- BOLA: user-controlled object id flows into a DB lookup with no ownership check ----
+  - id: nodejs-bola-object
+    severity: ERROR
+    languages: [javascript, typescript]
+    mode: taint
+    message: >
+      Possible BOLA (Broken Object Level Authorization): a user-supplied object
+      id (req.params/req.query/req.body) reaches a database lookup without an
+      ownership/permission check. Verify the caller owns the object.
+    metadata:
+      owasp: "API1:2023 Broken Object Level Authorization"
+      cwe: "CWE-639"
+      cvss: "9.1"
+    pattern-sources:
+      - pattern: req.params.$X
+      - pattern: req.query.$X
+      - pattern: req.body.$X
+      - pattern: req.params.$X.$Y
+    pattern-sinks:
+      - pattern: $MODEL.findById(...)
+      - pattern: $MODEL.findOne(...)
+      - pattern: $MODEL.find(...)
+      - pattern: $MODEL.findByPk(...)
+      - pattern: $DB.query(...)
+    pattern-sanitizers:
+      - pattern: checkOwnership(...)
+      - pattern: verifyOwnership(...)
+      - pattern: authorize(...)
+      - pattern: req.user.id === $Z
+      - pattern: req.user.role
+
+  # ---- Mass assignment: raw request body reaches a write/update sink ----
+  - id: nodejs-mass-assignment
+    severity: ERROR
+    languages: [javascript, typescript]
+    mode: taint
+    message: >
+      Possible Mass Assignment: req.body is passed directly into a model
+      create/update/save. An attacker may set unintended fields (e.g. role,
+      isAdmin). Use an explicit field allowlist.
+    metadata:
+      owasp: "API3/A08:2021 Mass Assignment / Improper Asset Management"
+      cwe: "CWE-915"
+      cvss: "8.1"
+    pattern-sources:
+      - pattern: req.body
+    pattern-sinks:
+      - pattern: $MODEL.create(...)
+      - pattern: $MODEL.update(...)
+      - pattern: $MODEL.save(...)
+      - pattern: $MODEL.insert(...)
+    pattern-sanitizers:
+      - pattern: pick(...)
+      - pattern: _.pick(...)
+      - pattern: sanitize(...)
+      - pattern: allowList(...)
+
+  # ---- BFLA: sensitive/state-changing handler with no admin/role guard ----
+  - id: nodejs-bfla-missing-guard
+    severity: ERROR
+    languages: [javascript, typescript]
+    message: >
+      Possible BFLA (Broken Function Level Authorization): a state-changing or
+      sensitive route handler has no role/permission check before executing.
+      Enforce admin/role authorization on the handler.
+    metadata:
+      owasp: "API5:2023 Broken Function Level Authorization"
+      cwe: "CWE-862"
+      cvss: "8.1"
+    patterns:
+      - pattern-inside: |
+          app.$M(..., (req, res) => { ... })
+      - pattern-either:
+          - pattern: $MODEL.remove(...)
+          - pattern: $MODEL.delete(...)
+          - pattern: $MODEL.destroy(...)
+          - pattern: $MODEL.update(...)
+          - pattern: $MODEL.create(...)
+      - pattern-not: authorize(...)
+      - pattern-not: req.user.role
+      - pattern-not: checkRole(...)
+      - pattern-not: requireAdmin(...)
+      - pattern-not: isAdmin(...)
+      - pattern-not: hasPermission(...)
+    fix: >
+      Add a function-level authorization guard at the top of the handler, e.g.
+      `if (req.user?.role !== 'admin') return res.status(403).json({error:'forbidden'});`
+
+  # ---- API4: no rate limiting on a state-changing/sensitive route ----
+  - id: nodejs-no-rate-limit
+    severity: WARNING
+    languages: [javascript, typescript]
+    message: >
+      Possible API4 (Unrestricted Resource Consumption): a route is registered
+      without a rate limiter, allowing abuse (brute force, resource exhaustion).
+    metadata:
+      owasp: "API4:2023 Unrestricted Resource Consumption"
+      cwe: "CWE-770"
+      cvss: "5.3"
+    patterns:
+      - pattern-either:
+          - pattern: app.post(...)
+          - pattern: app.put(...)
+          - pattern: app.delete(...)
+          - pattern: app.patch(...)
+      - pattern-not: rateLimit(...)
+      - pattern-not: slowDown(...)
+    fix: >
+      Apply a rate limiter to the route, e.g.
+      `app.post('/login', rateLimit({windowMs:15*60*1000, max:10}), handler);`
+

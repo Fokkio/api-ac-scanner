@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scan Source — API AC Scanner</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">⛨</span><span class="brand-text">api-<b>ac</b>-scanner</span></div>
+    <nav class="nav"><a href="/">Home</a><a href="/scan/source">Scan Source</a><a href="/scan/domain">Scan Domain</a></nav>
+  </header>
+  <main class="container narrow">
+    <h1>Scan source code</h1>
+    <p class="sub">Upload a folder or files. We statically analyze for access-control anti-patterns
+      (BOLA, Mass Assignment) across Node/Express, Python, PHP and Java. After the scan you can
+      preview a fix and apply it to your copy.</p>
+
+    <form action="/scan/source/run" method="post" enctype="multipart/form-data" class="form">
+      <label class="field">
+        <span class="field-label">Source files / folder</span>
+        <input type="file" name="sources" multiple webkitdirectory directory />
+        <span class="hint">Select a directory (Chrome/Edge) or multiple files.</span>
+      </label>
+      <button class="btn btn-primary" type="submit">Run source scan</button>
+    </form>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

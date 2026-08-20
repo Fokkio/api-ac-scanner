@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scan Report — API AC Scanner</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">⛨</span><span class="brand-text">api-<b>ac</b>-scanner</span></div>
+    <nav class="nav"><a href="/">Home</a><a href="/scan/source">Scan Source</a><a href="/scan/domain">Scan Domain</a></nav>
+  </header>
+
+  <main class="container">
+    <section class="report-head">
+      <div>
+        <span class="scan-kind scan-kind-<%= rec.kind %>"><%= rec.kind %></span>
+        <h1><%= rec.target %></h1>
+        <span class="muted"><%= new Date(rec.createdAt).toLocaleString() %></span>
+      </div>
+      <div class="summary-stats">
+        <% const c = summarize(rec.findings); %>
+        <div class="stat stat-Critical"><span><%= c.Critical||0 %></span><label>Critical</label></div>
+        <div class="stat stat-High"><span><%= c.High||0 %></span><label>High</label></div>
+        <div class="stat stat-Medium"><span><%= c.Medium||0 %></span><label>Medium</label></div>
+        <div class="stat stat-Low"><span><%= c.Low||0 %></span><label>Low</label></div>
+      </div>
+    </section>
+
+    <% if (rec.findings.length === 0) { %>
+      <div class="empty-state">
+        <h2>✓ No access-control issues detected</h2>
+        <p class="muted">This scan did not surface BOLA / BFLA / Mass-Assignment patterns.
+          Note: a clean scan is not a guarantee of safety — manual review still recommended.</p>
+      </div>
+    <% } else { %>
+      <section class="findings">
+        <% rec.findings.forEach(function(f, i){ %>
+          <article class="finding" data-rule="<%= f.rule_id %>" data-file="<%= f.file||'' %>">
+            <div class="finding-head">
+              <span class="sev-badge" style="background:<%= f.severity_color %>;"><%= f.severity %></span>
+              <span class="owasp"><%= f.owasp %> · <%= f.owasp_name %></span>
+              <span class="cvss">CVSS <%= f.cvss %></span>
+            </div>
+            <p class="finding-msg"><%= f.message %></p>
+            <% if (f.file) { %>
+              <p class="finding-loc"><%= f.file %>:<%= f.line %></p>
+              <% if (f.code) { %><pre class="code"><code><%= f.code %></code></pre><% } %>
+            <% } %>
+            <% if (f.url) { %><p class="finding-loc"><%= f.url %></p><% } %>
+            <% if (f.evidence) { %><p class="finding-evidence">evidence: <%= f.evidence %></p><% } %>
+            <div class="guidance">
+              <h4>How to fix</h4>
+              <p><%= f.guidance %></p>
+            </div>
+            <% if (f.type === 'source' && f.file) { %>
+              <div class="fix-actions">
+                <button class="btn btn-sm" data-act="preview" data-scan="<%= rec.id %>" data-rule="<%= f.rule_id %>" data-file="<%= f.file %>">Preview fix</button>
+              </div>
+              <div class="fix-panel" id="fix-<%= i %>" hidden></div>
+            <% } %>
+          </article>
+        <% }) %>
+      </section>
+    <% } %>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
