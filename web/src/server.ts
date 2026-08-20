@@ -15,6 +15,13 @@ import { FixPreview } from "./types";
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 
+// Refuse to start without a real session secret. The old fallback
+// ("dev-local-only-secret") let anyone forge sessions if the env was missing.
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  throw new Error("SESSION_SECRET must be set (use a long random value in production)");
+}
+
 app.set("view engine", "ejs");
 app.set("views", path.resolve(__dirname, "..", "views"));
 
@@ -23,7 +30,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "dev-local-only-secret",
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
   })

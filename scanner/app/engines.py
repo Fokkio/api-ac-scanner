@@ -225,7 +225,9 @@ def _resolve_bola_paths(object_urls: str) -> list[str]:
     allowed = [u for u in custom if not is_blocked_target(u)]
     blocked = [u for u in custom if is_blocked_target(u)]
     if blocked:
-        print(f"[ssrf] dropped blocked object URLs: {blocked}")
+        # Logged at debug level only; never print internal URLs to stdout in prod.
+        import logging
+        logging.debug("[ssrf] dropped blocked object URLs: %s", blocked)
     return allowed or list(DEFAULT_BOLA_PATHS)
 
 
