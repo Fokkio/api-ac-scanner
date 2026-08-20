@@ -4,6 +4,7 @@ Communicates with the web service over the internal docker network.
 """
 
 from __future__ import annotations
+import os
 import subprocess
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,11 +15,17 @@ from app.engines import source_scan, domain_scan
 
 app = FastAPI(title="API Access-Control Scanner", version="1.0.0")
 
+# CORS is locked to an explicit allowlist of trusted origins instead of "*".
+# Configure via CORS_ORIGINS (comma-separated). Defaults to the local dev UI.
+_CORS_RAW = os.environ.get("CORS_ORIGINS", "http://localhost:3000")
+ALLOWED_ORIGINS = [o.strip() for o in _CORS_RAW.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
+    allow_credentials=True,
 )
 
 

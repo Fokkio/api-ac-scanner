@@ -16,6 +16,64 @@ RULES_DIR = Path(__file__).resolve().parent.parent / "semgrep_rules"
 SCAN_TIMEOUT = 10.0
 HTTPX_VERIFY = True  # never disable cert validation on a live scan
 
+# --- SSRF guard -------------------------------------------------------------
+# Block targets that resolve to internal / link-local / private / loopback
+# addresses. Without this, a user-supplied `target` (or a custom object URL)
+# could make the scanner issue requests to cloud metadata endpoints, localhost
+# services, or other hosts on the private network. Resolution is re-checked
+# because a hostname may resolve differently across redirects; we also block
+# raw IP literals directly.
+import ipaddress
+
+PRIVATE_RANGES = [
+    ipaddress.ip_network("127.0.0.0/8"),      # IPv4 loopback
+    ipaddress.ip_network("10.0.0.0/8"),       # RFC1918 private
+    ipaddress.ip_network("172.16.0.0/12"),     # RFC1918 private
+    ipaddress.ip_network("192.168.0.0/16"),   # RFC1918 private
+    ipaddress.ip_network("169.254.0.0/16"),   # link-local (AWS/GCP metadata!)
+    ipaddress.ip_network("100.64.0.0/10"),    # CGNAT
+    ipaddress.ip_network("::1/128"),          # IPv6 loopback
+    ipaddress.ip_network("fc00::/7"),         # IPv6 unique local
+    ipaddress.ip_network("fe80::/10"),        # IPv6 link-local
+]
+
+
+def _is_blocked_ip(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved \
+            or addr.is_multicast or addr.is_unspecified:
+        return True
+    for net in PRIVATE_RANGES:
+        if addr in net:
+            return True
+    return False
+
+
+def is_blocked_target(url: str) -> bool:
+    """Return True if `url` points at a non-public address (SSRF guard)."""
+    try:
+        host = httpx.URL(url).host
+    except Exception:
+        return True
+    if not host:
+        return True
+    # Block literal IPs directly.
+    if _is_blocked_ip(host):
+        return True
+    # Resolve hostname -> block if ANY resolved address is non-public.
+    try:
+        import socket
+        for info in socket.getaddrinfo(host, None):
+            if _is_blocked_ip(info[4][0]):
+                return True
+    except Exception:
+        # If we cannot resolve, refuse to scan (fail closed).
+        return True
+    return False
+
 # Default object endpoints probed for BOLA. User-supplied custom URLs override these.
 DEFAULT_BOLA_PATHS = [
     "/api/users/1",
@@ -134,6 +192,15 @@ async def domain_scan(
     headers_owner = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
     headers_alt = {"Authorization": f"Bearer {alt_token}"} if alt_token else {}
 
+    if is_blocked_target(base):
+        return [_domain_finding(
+            base, "API8:2023", 0.0,
+            f"SSRF guard: target '{base}' resolves to a non-public / internal "
+            f"address and was blocked. Scan aborted for this target.",
+            "domain-ssrf-blocked",
+            evidence="target resolves to loopback/private/link-local range",
+        )]
+
     bola_paths = _resolve_bola_paths(object_urls)
 
     async with httpx.AsyncClient(
@@ -147,11 +214,19 @@ async def domain_scan(
 
 
 def _resolve_bola_paths(object_urls: str) -> list[str]:
-    """Custom object URLs (comma/newline separated) override the defaults."""
+    """Custom object URLs (comma/newline separated) override the defaults.
+
+    Each user-supplied URL is checked against the SSRF guard; blocked entries
+    are dropped so the scanner never probes internal addresses.
+    """
     if not object_urls:
         return list(DEFAULT_BOLA_PATHS)
     custom = [u.strip() for u in object_urls.replace("\n", ",").split(",") if u.strip()]
-    return custom or list(DEFAULT_BOLA_PATHS)
+    allowed = [u for u in custom if not is_blocked_target(u)]
+    blocked = [u for u in custom if is_blocked_target(u)]
+    if blocked:
+        print(f"[ssrf] dropped blocked object URLs: {blocked}")
+    return allowed or list(DEFAULT_BOLA_PATHS)
 
 
 async def _scan_bola(client, base: str, paths: list[str], headers_owner: dict,
@@ -263,6 +338,9 @@ def _scan_mutations(base: str) -> list[dict]:
 
 
 async def _safe_get(client, url: str, headers: dict):
+    # SSRF guard: never issue a request to a non-public / internal address.
+    if is_blocked_target(url):
+        return None
     try:
         return await client.get(url, headers=headers)
     except Exception:
