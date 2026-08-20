@@ -209,7 +209,7 @@ async def domain_scan(
         findings: list[dict] = []
         findings += await _scan_bola(client, base, bola_paths, headers_owner, headers_alt, alt_token)
         findings += await _scan_bfla(client, base, headers_owner)
-        findings += _scan_mutations(base)
+        findings += await _scan_mutations(client, base)
     return findings
 
 
@@ -299,12 +299,21 @@ def _bolaswap_finding(url: str, owner_status: int, alt_status: int, sim: float) 
 
 
 async def _scan_bfla(client, base: str, headers_owner: dict) -> list[dict]:
-    """BFLA test: request admin endpoints with a non-admin token."""
+    """BFLA test: request admin endpoints with a non-admin token.
+
+    Only flags endpoints that actually respond. A 404 means the admin route
+    does not exist on this target, so we skip it (no false positive). A 200
+    means the admin endpoint answered a lower-privilege token -> confirmed
+    BFLA. A redirect is flagged as suspected.
+    """
     findings: list[dict] = []
     for path in DEFAULT_BFLA_PATHS:
         url = f"{base}{path}"
         resp = await _safe_get(client, url, headers_owner)
         if resp is None:
+            continue
+        if resp.status_code == 404:
+            # Admin route not present on this target -> no finding.
             continue
         if resp.status_code == 200:
             findings.append(_domain_finding(
@@ -325,16 +334,41 @@ async def _scan_bfla(client, base: str, headers_owner: dict) -> list[dict]:
     return findings
 
 
-def _scan_mutations(base: str) -> list[dict]:
-    """Read-only: flag mutation endpoints, never execute them."""
+async def _scan_mutations(client, base: str) -> list[dict]:
+    """Read-only: probe mutation endpoints and flag ONLY those that exist.
+
+    We never execute a mutation. Instead we send a safe GET (and an OPTIONS)
+    to see whether the endpoint is actually present on the target. A 404 means
+    the path does not exist here -> no finding (avoids false positives on
+    targets that don't expose these routes). Any other status means the route
+    exists -> flag it as a mutation surface for manual review.
+    """
     findings: list[dict] = []
     for method, path in DEFAULT_MUTATION_PATHS:
         url = f"{base}{path}"
+        # Send a harmless GET first to detect existence.
+        get_resp = await _safe_get(client, url, {})
+        if get_resp is None:
+            # Connection error / blocked -> cannot confirm; skip silently.
+            continue
+        status = get_resp.status_code
+        if status == 404:
+            # Endpoint not present on this target -> no finding.
+            continue
+        # Route exists (200/405/401/403/redirect/500...). Flag as a mutation
+        # surface, but mark it clearly as UNVERIFIED (not executed).
+        options_resp = await _safe_get(client, url, {"Access-Control-Request-Method": method})
+        allowed = ""
+        if options_resp is not None:
+            allowed = options_resp.headers.get("allow", "")
         findings.append(_domain_finding(
             url, "API5:2023", 5.3,
-            f"Mutation endpoint {method} {url} is not gated by a function-level auth check in "
-            f"read-only mode — flagged, NOT executed.",
+            f"Mutation endpoint {method} {url} exists on this target "
+            f"(GET returned {status}) but was NOT executed (read-only mode). "
+            f"Verify it enforces function-level authorization before allowing "
+            f"{method}.",
             "domain-bfla-mutation",
+            evidence=f"probe_status={status} allow_header={allowed}",
         ))
     return findings
 
