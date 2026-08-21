@@ -1,26 +1,15 @@
-# Dependencies
 node_modules/
-web/node_modules/
 dist/
-web/dist/
-
-# Scanner / Python
+.env
+*.log
+.npm-cache/
+.test-deps/
+.npm-cache/
 __pycache__/
-scanner/**/__pycache__/
 *.pyc
-.venv/
-
-# Uploaded (scanned) sources — user data, never commit
+.pytest_cache/
+test-artifacts/f0kki0-user-flow-*/
+web/data/*
+!web/data/.gitkeep
 web/uploads/*
 !web/uploads/.gitkeep
-
-# Scan records database
-web/data/db.json
-
-# Logs / OS junk
-*.log
-.DS_Store
-Thumbs.db
-
-# Local overrides
-docker-compose.override.yml

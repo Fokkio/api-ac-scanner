@@ -1,0 +1,30 @@
+<%- include('partials/header', { title: 'Safe local mutation' }) %>
+<main id="main-content" class="narrow-page">
+  <section class="page-heading">
+    <div>
+      <div class="eyebrow">CREATE + CLEANUP</div>
+      <h1>Safe local mutation test</h1>
+      <p>V3.1 only POSTs a marked resource under <code>/__ac_test__/</code>, then DELETEs the same path immediately.</p>
+    </div>
+  </section>
+  <section class="warning-card">Use a dedicated disposable local fixture. A failed cleanup is reported prominently but cannot be magically rolled back.</section>
+  <section class="panel">
+    <form class="stack-form" action="/scans/mutation" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>Verified local asset<select name="assetId" required><option value="">Select local asset</option><% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %></option><% }); %></select></label>
+      <label>Dedicated test path<input name="mutationPath" required value="/__ac_test__/v3-safe-resource" maxlength="512" /></label>
+      <label>JSON body<textarea name="mutationBody" required maxlength="4096" rows="5">{"apiAcScannerTest":true,"value":"temporary"}</textarea></label>
+      <div class="two-column">
+        <label>Identity label<input name="identityLabel" required value="Mutation tester" maxlength="64" /></label>
+        <label>Role<input name="identityRole" value="tester" maxlength="64" /></label>
+        <label>Tenant<input name="identityTenant" value="local" maxlength="64" /></label>
+        <label>Authentication type<select name="identityAuthType"><option value="bearer">Bearer</option><option value="basic">HTTP Basic</option><option value="cookie">Cookie</option><option value="api-key">API key</option><option value="custom-headers">Custom headers JSON</option></select></label>
+        <label>API-key header<input name="identityHeaderName" placeholder="x-api-key" /></label>
+        <label>Credential<textarea name="identityCredential" required maxlength="8192" autocomplete="off"></textarea></label>
+      </div>
+      <label>Confirmation<input name="confirmation" required placeholder="MUTATE TEST RESOURCE" autocomplete="off" /></label>
+      <button type="submit">Create test resource and clean it up</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/footer') %>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API AC Scanner report 18c13b06a0b4555b17fa2991cbf1810cba522354aaba1510</title>
+<style>
+body{font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;max-width:1100px;margin:32px auto;padding:0 24px}h1{word-break:break-word}h2{margin-top:28px}code{font-family:ui-monospace,monospace;background:#eef2f7;padding:2px 5px}.meta,.warning,.finding{border:1px solid #d8deea;border-radius:10px;padding:14px;margin:12px 0}.warning{background:#fff8df}.summary{display:flex;gap:12px;flex-wrap:wrap}.summary span{background:#eef2f7;border-radius:999px;padding:7px 11px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d8deea;padding:8px;text-align:left;vertical-align:top}dt{font-weight:700}dd{margin:0 0 6px;word-break:break-word}@media print{body{margin:0;max-width:none}.finding{break-inside:avoid}}
+</style></head><body>
+<h1>API Access-Control Assessment Report</h1>
+<section class="meta"><strong>workflow scan</strong><br>http://demo-api:4100/<br>
+Report ID: 18c13b06a0b4555b17fa2991cbf1810cba522354aaba1510<br>Created: 2026-08-21T09:09:09.618Z<br>Status: done / Report ready</section>
+<section class="summary"><span>verified: 0</span><span>detected: 0</span><span>suspected: 0</span><span>needs-verification: 0</span><span>passed: 6</span><span>not-tested: 0</span><span>error: 0</span></section>
+<div class="warning">Workflow execution is restricted to a verified allowlisted local asset and the /__ac_test__/ namespace.</div><div class="warning">Verified means an observed allow/deny result contradicted the explicit expected decision for that step.</div><div class="warning">Remaining steps are skipped after the first mismatch or indeterminate result because later evidence is unreliable.</div><div class="warning">Credentials and acquired tokens are used in memory only and are excluded from findings and reports.</div>
+<h2>Authorization matrix</h2><table><thead><tr><th>Endpoint</th><th>Identity</th><th>Expected</th><th>Actual</th><th>Result</th></tr></thead><tbody><tr>
+    <td>POST /__ac_test__/resource-json-login</td>
+    <td>Alice json-login</td><td>allow</td>
+    <td>allow (201)</td>
+    <td>match</td></tr><tr>
+    <td>PUT /__ac_test__/resource-json-login</td>
+    <td>Alice json-login</td><td>allow</td>
+    <td>allow (200)</td>
+    <td>match</td></tr><tr>
+    <td>PATCH /__ac_test__/resource-json-login</td>
+    <td>Alice json-login</td><td>allow</td>
+    <td>allow (200)</td>
+    <td>match</td></tr><tr>
+    <td>GET /__ac_test__/resource-json-login</td>
+    <td>Alice json-login</td><td>allow</td>
+    <td>allow (200)</td>
+    <td>match</td></tr><tr>
+    <td>DELETE /__ac_test__/resource-json-login</td>
+    <td>Alice json-login</td><td>allow</td>
+    <td>allow (204)</td>
+    <td>match</td></tr></tbody></table>
+<h2>Findings</h2><article class="finding"><h3>[passed] Workflow step create completed</h3>
+  <p>API5:2023 / info / high confidence</p>
+  <code>/__ac_test__/resource-json-login</code><p>The observed allow/deny outcome was compared with the explicit expected decision for this step.</p>
+  <dl><dt>step</dt><dd>create</dd><dt>method</dt><dd>POST</dd><dt>expected</dt><dd>allow</dd><dt>actual</dt><dd>allow</dd><dt>status</dt><dd>201</dd></dl><strong>Recommendation</strong><p>Confirm the declared policy, then fix authorization enforcement and retain this workflow as a regression test.</p></article><article class="finding"><h3>[passed] Workflow step replace completed</h3>
+  <p>API1:2023 / info / high confidence</p>
+  <code>/__ac_test__/resource-json-login</code><p>The observed allow/deny outcome was compared with the explicit expected decision for this step.</p>
+  <dl><dt>step</dt><dd>replace</dd><dt>method</dt><dd>PUT</dd><dt>expected</dt><dd>allow</dd><dt>actual</dt><dd>allow</dd><dt>status</dt><dd>200</dd></dl><strong>Recommendation</strong><p>Confirm the declared policy, then fix authorization enforcement and retain this workflow as a regression test.</p></article><article class="finding"><h3>[passed] Workflow step patch completed</h3>
+  <p>API1:2023 / info / high confidence</p>
+  <code>/__ac_test__/resource-json-login</code><p>The observed allow/deny outcome was compared with the explicit expected decision for this step.</p>
+  <dl><dt>step</dt><dd>patch</dd><dt>method</dt><dd>PATCH</dd><dt>expected</dt><dd>allow</dd><dt>actual</dt><dd>allow</dd><dt>status</dt><dd>200</dd></dl><strong>Recommendation</strong><p>Confirm the declared policy, then fix authorization enforcement and retain this workflow as a regression test.</p></article><article class="finding"><h3>[passed] Workflow step read completed</h3>
+  <p>API1:2023 / info / high confidence</p>
+  <code>/__ac_test__/resource-json-login</code><p>The observed allow/deny outcome was compared with the explicit expected decision for this step.</p>
+  <dl><dt>step</dt><dd>read</dd><dt>method</dt><dd>GET</dd><dt>expected</dt><dd>allow</dd><dt>actual</dt><dd>allow</dd><dt>status</dt><dd>200</dd></dl><strong>Recommendation</strong><p>Confirm the declared policy, then fix authorization enforcement and retain this workflow as a regression test.</p></article><article class="finding"><h3>[passed] Workflow step delete completed</h3>
+  <p>API1:2023 / info / high confidence</p>
+  <code>/__ac_test__/resource-json-login</code><p>The observed allow/deny outcome was compared with the explicit expected decision for this step.</p>
+  <dl><dt>step</dt><dd>delete</dd><dt>method</dt><dd>DELETE</dd><dt>expected</dt><dd>allow</dd><dt>actual</dt><dd>allow</dd><dt>status</dt><dd>204</dd></dl><strong>Recommendation</strong><p>Confirm the declared policy, then fix authorization enforcement and retain this workflow as a regression test.</p></article><article class="finding"><h3>[passed] Workflow cleanup completed</h3>
+  <p>API5:2023 / info / high confidence</p>
+  <code>/__ac_test__/</code><p>The scanner attempted DELETE cleanup in reverse order for every mutated test path.</p>
+  <dl><dt>pathsAttempted</dt><dd>1</dd><dt>cleanupSucceeded</dt><dd>true</dd><dt>cleanup:/__ac_test__/resource-json-login</dt><dd>404</dd><dt>cleanupVerified:/__ac_test__/resource-json-login</dt><dd>true</dd></dl><strong>Recommendation</strong><p>Investigate any unverified cleanup before re-running the workflow.</p></article>
+<p><small>Generated by API AC Scanner V3.1. Secrets are excluded or redacted. Findings are evidence for authorized review, not proof of complete security.</small></p>
+</body></html>

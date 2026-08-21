@@ -1,0 +1,141 @@
+name: api-ac-scanner-v31
+
+services:
+  scanner:
+    build:
+      context: ./scanner
+    environment:
+      SCANNER_INTERNAL_TOKEN: ${SCANNER_INTERNAL_TOKEN:?set SCANNER_INTERNAL_TOKEN in .env}
+      UPLOAD_ROOT: /uploads
+      LOCAL_MODE: ${LOCAL_MODE:-true}
+      LOCAL_ALLOWED_HOSTS: ${LOCAL_ALLOWED_HOSTS:-host.docker.internal,localhost,127.0.0.1,::1,demo-api}
+      LOCAL_ALLOWED_PORTS: ${LOCAL_ALLOWED_PORTS:-80,443,3000,4000,4100,5000,8000,8080,8443}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "8001"
+    volumes:
+      - ./web/uploads:/uploads:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 768m
+    cpus: 1.5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2).read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: ./web
+    depends_on:
+      scanner:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "3000"
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:3000}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?set ADMIN_USERNAME in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      SCANNER_INTERNAL_TOKEN: ${SCANNER_INTERNAL_TOKEN:?set SCANNER_INTERNAL_TOKEN in .env}
+      SCANNER_URL: http://scanner:8001
+      DATA_DIR: /data
+      UPLOAD_ROOT: /uploads
+      REPORT_TTL_HOURS: ${REPORT_TTL_HOURS:-168}
+      MAX_STORED_REPORTS: ${MAX_STORED_REPORTS:-200}
+      QUEUE_CAPACITY: ${QUEUE_CAPACITY:-50}
+      SCAN_CONCURRENCY: ${SCAN_CONCURRENCY:-2}
+      MAX_SESSIONS: ${MAX_SESSIONS:-1000}
+      LOCAL_MODE: ${LOCAL_MODE:-true}
+      LOCAL_ALLOWED_HOSTS: ${LOCAL_ALLOWED_HOSTS:-host.docker.internal,localhost,127.0.0.1,::1,demo-api}
+      LOCAL_ALLOWED_PORTS: ${LOCAL_ALLOWED_PORTS:-80,443,3000,4000,4100,5000,8000,8080,8443}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./web/data:/data
+      - ./web/uploads:/uploads
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: 1.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  demo-db:
+    profiles: ["demo"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: order_portal
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: disposable-db-password
+    volumes:
+      - ./fixtures/order-portal/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    tmpfs:
+      - /var/lib/postgresql/data:size=256m
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: 0.75
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal -d order_portal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  demo-api:
+    profiles: ["demo"]
+    build:
+      context: ./fixtures/order-portal
+    depends_on:
+      demo-db:
+        condition: service_healthy
+    environment:
+      PORT: "4100"
+      DATABASE_URL: postgres://portal:disposable-db-password@demo-db:5432/order_portal
+    expose:
+      - "4100"
+    ports:
+      - "127.0.0.1:4100:4100"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4100/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+      start_period: 5s

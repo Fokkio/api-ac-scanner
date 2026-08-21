@@ -1,71 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Scan Report — API AC Scanner</title>
-  <link rel="stylesheet" href="/styles.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand"><span class="logo">⛨</span><span class="brand-text">api-<b>ac</b>-scanner</span></div>
-    <nav class="nav"><a href="/">Home</a><a href="/scan/source">Scan Source</a><a href="/scan/domain">Scan Domain</a></nav>
+<%- include('partials/header', { title: 'Scan report' }) %>
+<main id="main-content" class="report-page" data-report-id="<%= scan.id %>" data-report-status="<%= scan.status %>">
+  <header class="report-header">
+    <div>
+      <span class="kind-chip"><%= scan.kind %> scan</span>
+      <h1><%= scan.target %></h1>
+      <p>Created <%= new Date(scan.createdAt).toLocaleString() %> / Expires <%= new Date(scan.expiresAt).toLocaleString() %></p>
+    </div>
+    <div class="report-state">
+      <strong id="scan-status"><%= scan.status %></strong>
+      <span id="scan-stage"><%= scan.stage %></span>
+      <% if (scan.status === 'done' || scan.status === 'error') { %>
+        <span><a href="/reports/<%= scan.id %>/export.html">Download HTML</a> · <a href="/reports/<%= scan.id %>/export.pdf">Download PDF</a></span>
+      <% } %>
+    </div>
   </header>
 
-  <main class="container">
-    <section class="report-head">
-      <div>
-        <span class="scan-kind scan-kind-<%= rec.kind %>"><%= rec.kind %></span>
-        <h1><%= rec.target %></h1>
-        <span class="muted"><%= new Date(rec.createdAt).toLocaleString() %></span>
-      </div>
-      <div class="summary-stats">
-        <% const c = summarize(rec.findings); %>
-        <div class="stat stat-Critical"><span><%= c.Critical||0 %></span><label>Critical</label></div>
-        <div class="stat stat-High"><span><%= c.High||0 %></span><label>High</label></div>
-        <div class="stat stat-Medium"><span><%= c.Medium||0 %></span><label>Medium</label></div>
-        <div class="stat stat-Low"><span><%= c.Low||0 %></span><label>Low</label></div>
-      </div>
+  <% if (scan.status === 'queued' || scan.status === 'running') { %>
+    <section class="panel progress-panel" aria-live="polite">
+      <h2>Analysis in progress</h2>
+      <progress id="scan-progress" max="100" value="<%= scan.progress %>"><%= scan.progress %>%</progress>
+      <p>The report updates automatically. Credentials, if supplied, are not stored in this report.</p>
     </section>
+  <% } %>
 
-    <% if (rec.findings.length === 0) { %>
-      <div class="empty-state">
-        <h2>✓ No access-control issues detected</h2>
-        <p class="muted">This scan did not surface BOLA / BFLA / Mass-Assignment patterns.
-          Note: a clean scan is not a guarantee of safety — manual review still recommended.</p>
-      </div>
-    <% } else { %>
-      <section class="findings">
-        <% rec.findings.forEach(function(f, i){ %>
-          <article class="finding" data-rule="<%= f.rule_id %>" data-file="<%= f.file||'' %>">
-            <div class="finding-head">
-              <span class="sev-badge" style="background:<%= f.severity_color %>;"><%= f.severity %></span>
-              <span class="owasp"><%= f.owasp %> · <%= f.owasp_name %></span>
-              <span class="cvss">CVSS <%= f.cvss %></span>
-            </div>
-            <p class="finding-msg"><%= f.message %></p>
-            <% if (f.file) { %>
-              <p class="finding-loc"><%= f.file %>:<%= f.line %></p>
-              <% if (f.code) { %><pre class="code"><code><%= f.code %></code></pre><% } %>
-            <% } %>
-            <% if (f.url) { %><p class="finding-loc"><%= f.url %></p><% } %>
-            <% if (f.evidence) { %><p class="finding-evidence">evidence: <%= f.evidence %></p><% } %>
-            <div class="guidance">
-              <h4>How to fix</h4>
-              <p><%= f.guidance %></p>
-            </div>
-            <% if (f.type === 'source' && f.file) { %>
-              <div class="fix-actions">
-                <button class="btn btn-sm" data-act="preview" data-scan="<%= rec.id %>" data-rule="<%= f.rule_id %>" data-file="<%= f.file %>">Preview fix</button>
-              </div>
-              <div class="fix-panel" id="fix-<%= i %>" hidden></div>
-            <% } %>
-          </article>
-        <% }) %>
+  <% if (scan.status === 'error') { %>
+    <section class="error-card">
+      <h2>Scan failed - no clean result was recorded</h2>
+      <p><%= scan.errorMessage %></p>
+      <code><%= scan.errorCode %></code>
+    </section>
+  <% } %>
+
+  <% if (scan.status === 'done') { %>
+    <% if (scan.matrix && scan.matrix.length > 0) { %>
+      <section class="panel">
+        <div class="eyebrow">AUTHORIZATION MATRIX</div>
+        <h2>Expected vs actual access</h2>
+        <p class="muted">V3.1 uses the complete explicit authorization policy supplied for this scan.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Endpoint</th><th>Identity</th><th>Role / tenant</th><th>Expected</th><th>Actual</th><th>Match</th></tr></thead>
+            <tbody>
+              <% scan.matrix.forEach(function(row) { %>
+                <tr>
+                  <td><code><%= row.method %> <%= row.path %></code></td>
+                  <td><%= row.identity %></td>
+                  <td><%= row.role || '-' %> / <%= row.tenant || '-' %></td>
+                  <td><%= row.expected %></td>
+                  <td><%= row.actual %> (<%= row.actualStatus %>)</td>
+                  <td><span class="status-chip <%= row.skippedAfterPriorFailure ? 'status-not-tested' : row.matchesExpectation ? 'status-passed' : 'status-suspected' %>"><%= row.skippedAfterPriorFailure ? 'skipped' : row.matchesExpectation ? 'match' : 'mismatch' %></span></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
       </section>
     <% } %>
-  </main>
+    <% if (scan.endpoints && scan.endpoints.length > 0) { %>
+      <section class="panel">
+        <div class="page-heading compact-heading">
+          <div>
+            <div class="eyebrow">ENDPOINT INVENTORY</div>
+            <h2><%= scan.endpoints.length %> endpoints discovered</h2>
+          </div>
+          <a class="button-link" href="/dashboard?inventory=<%= scan.id %>">Use candidates in deep scan</a>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Method</th><th>Path</th><th>Candidate</th><th>Source</th><th>Confidence</th></tr></thead>
+            <tbody>
+              <% scan.endpoints.forEach(function(endpoint) { %>
+                <tr>
+                  <td><code><%= endpoint.method %></code></td>
+                  <td><code><%= endpoint.path %></code></td>
+                  <td><%= endpoint.candidateType %></td>
+                  <td><%= endpoint.sourceType %> / <%= endpoint.sourceFile %><%= endpoint.line ? ':' + endpoint.line : '' %></td>
+                  <td><%= endpoint.confidence %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    <% } %>
+    <section class="summary-grid">
+      <% ['verified', 'detected', 'suspected', 'needs-verification', 'passed', 'not-tested', 'error'].forEach(function(state) { %>
+        <article>
+          <strong><%= scan.findings.filter(function(finding) { return finding.state === state; }).length %></strong>
+          <span><%= state.replace('-', ' ') %></span>
+        </article>
+      <% }); %>
+    </section>
 
-  <script src="/app.js"></script>
-</body>
-</html>
+    <% scan.warnings.forEach(function(warning) { %>
+      <div class="warning-card"><%= warning %></div>
+    <% }); %>
+
+    <section class="findings">
+      <% if (scan.findings.length === 0) { %>
+        <div class="empty-card">No findings were produced. Check the scan warnings and coverage before drawing conclusions.</div>
+      <% } %>
+      <% scan.findings.forEach(function(finding) { %>
+        <details class="finding-card" <%= finding.state === 'detected' || finding.state === 'suspected' ? 'open' : '' %>>
+          <summary>
+            <span class="status-chip status-<%= finding.state %>"><%= finding.state.replace('-', ' ') %></span>
+            <span><%= finding.title %></span>
+            <small><%= finding.owaspId %> / <%= finding.confidence %> confidence</small>
+          </summary>
+          <div class="finding-body">
+            <p><%= finding.description %></p>
+            <% if (finding.location) { %><code><%= finding.location %></code><% } %>
+            <h3>Evidence</h3>
+            <dl>
+              <% Object.entries(finding.evidence).forEach(function(entry) { %>
+                <dt><%= entry[0] %></dt><dd><%= entry[1] %></dd>
+              <% }); %>
+            </dl>
+            <h3>Recommended verification</h3>
+            <p><%= finding.recommendation %></p>
+          </div>
+        </details>
+      <% }); %>
+    </section>
+  <% } %>
+</main>
+<%- include('partials/footer') %>

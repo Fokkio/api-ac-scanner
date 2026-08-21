@@ -1,23 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Error — API AC Scanner</title>
-  <link rel="stylesheet" href="/styles.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand"><span class="logo">⛨</span><span class="brand-text">api-<b>ac</b>-scanner</span></div>
-    <nav class="nav"><a href="/">Home</a></nav>
-  </header>
-  <main class="container narrow">
-    <div class="empty-state">
-      <h2>Something went wrong</h2>
-      <p class="muted"><%= message %></p>
-      <a class="btn" href="/">Back home</a>
-    </div>
-  </main>
-  <script src="/app.js"></script>
-</body>
-</html>
+<%- include('partials/header', { title: 'Request failed' }) %>
+<main id="main-content" class="narrow-page">
+  <section class="error-card">
+    <div class="eyebrow">REQUEST FAILED</div>
+    <h1><%= message %></h1>
+    <p>Error code: <code><%= code %></code></p>
+    <p>Request ID: <code><%= requestId %></code></p>
+    <a class="button-link" href="/">Return home</a>
+  </section>
+</main>
+<%- include('partials/footer') %>

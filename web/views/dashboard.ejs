@@ -1,0 +1,133 @@
+<%- include('partials/header', { title: 'Owner workspace' }) %>
+<main id="main-content" class="workspace">
+  <header class="page-heading">
+    <div>
+      <div class="eyebrow">LOCAL AUTHORIZATION LAB</div>
+      <h1>Authorization workspace</h1>
+      <p><%= localMode ? 'Local mode is enabled. Allowlisted local hosts are trusted automatically.' : 'Public assets require exact-origin verification.' %></p>
+    </div>
+    <form action="/logout" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="secondary-button" type="submit">Sign out</button>
+    </form>
+  </header>
+
+  <section class="panel">
+    <h2>1. Add your local or staging API</h2>
+    <form class="inline-form" action="/assets" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label class="sr-only" for="origin">Exact origin</label>
+      <input id="origin" name="origin" type="url" required placeholder="http://host.docker.internal:4100" />
+      <button type="submit">Add asset</button>
+    </form>
+  </section>
+
+  <section class="asset-list" aria-label="Configured assets">
+    <% if (assets.length === 0) { %>
+      <div class="empty-card">No assets yet. Add an allowlisted local origin or an exact HTTPS origin you control.</div>
+    <% } %>
+    <% assets.forEach(function(asset) { %>
+      <article class="asset-card">
+        <div>
+          <span class="status-chip <%= asset.isVerified ? 'status-passed' : 'status-needs-verification' %>">
+            <%= asset.isVerified ? 'Verified' : 'Pending verification' %>
+          </span>
+          <h3><%= asset.origin %></h3>
+          <% if (!asset.isVerified) { %>
+            <p>Choose one exact-origin verification method:</p>
+            <code><%= asset.origin %>/.well-known/api-ac-scanner-verification.txt</code>
+            <code>api-ac-scanner-v2.6-verification=<%= asset.challenge %></code>
+            <code>Header: X-API-AC-Scanner-Verification: <%= asset.challenge %></code>
+            <code>DNS TXT: _api-ac-scanner.<%= new URL(asset.origin).hostname %> = <%= asset.challenge %></code>
+          <% } %>
+        </div>
+        <% if (!asset.isVerified) { %>
+          <form action="/assets/<%= asset.id %>/verify" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <select name="verificationMethod" aria-label="Verification method">
+              <option value="file">Well-known file</option>
+              <option value="header">HTTP header</option>
+              <option value="dns">DNS TXT</option>
+            </select>
+            <button class="secondary-button" type="submit">Verify now</button>
+          </form>
+        <% } %>
+      </article>
+    <% }); %>
+  </section>
+
+  <section class="panel">
+    <h2>2. Build the authorization matrix</h2>
+    <p class="muted">Tokens are held only in the in-memory job and are never written to reports or disk.</p>
+    <% if (inventory && inventory.length > 0) { %>
+      <div class="warning-card">
+        Loaded <%= inventory.length %> discovered endpoints. Only concrete GET candidates were prefilled;
+        replace placeholders such as <code>{id}</code> or <code>:id</code> with dedicated test objects.
+      </div>
+    <% } %>
+    <form class="stack-form" action="/scans/deep" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>Verified asset
+        <select name="assetId" required>
+          <option value="">Select an asset</option>
+          <% assets.filter(function(asset) { return asset.isVerified; }).forEach(function(asset) { %>
+            <option value="<%= asset.id %>"><%= asset.origin %></option>
+          <% }); %>
+        </select>
+      </label>
+      <div class="two-column">
+        <label>Object paths
+          <textarea name="objectPaths" required rows="5" placeholder="/api/orders/123&#10;/api/documents/abc"><%= suggestedObjectPaths.join('\n') %></textarea>
+          <small>Known owner/tenant objects, relative paths only, maximum 5.</small>
+        </label>
+        <label>Admin/function paths
+          <textarea name="adminPaths" required rows="5" placeholder="/api/admin/users&#10;/api/admin/reports"><%= suggestedFunctionPaths.join('\n') %></textarea>
+          <small>Functions expected to require the first token, maximum 5.</small>
+        </label>
+      </div>
+      <label>Explicit authorization policy (JSON)
+        <textarea name="authorizationPolicy" required rows="12" maxlength="20000"
+          placeholder='[{"method":"GET","path":"/api/orders/1","identity":"Alice","expected":"allow"},{"method":"GET","path":"/api/orders/1","identity":"Bob","expected":"deny"},{"method":"GET","path":"/api/orders/1","identity":"Anonymous","expected":"deny"}]'></textarea>
+        <small>Provide one rule for every profile and Anonymous on every object/function path. Labels must exactly match the profile labels.</small>
+      </label>
+      <div class="two-column">
+        <label>Known-existing paths for enumeration (optional)
+          <textarea name="enumerationExistingPaths" rows="4" placeholder="/api/users/alice"></textarea>
+          <small>Pair each line with the missing-resource list, maximum 5.</small>
+        </label>
+        <label>Known-missing paths for enumeration (optional)
+          <textarea name="enumerationMissingPaths" rows="4" placeholder="/api/users/definitely-missing"></textarea>
+          <small>Order must match the existing-resource list.</small>
+        </label>
+      </div>
+      <div class="two-column">
+        <% ['primary', 'alternate'].forEach(function(prefix, index) { %>
+          <fieldset class="identity-card">
+            <legend><%= index === 0 ? 'Baseline / owner profile' : 'Alternate / lower-role profile' %></legend>
+            <label>Profile label<input name="<%= prefix %>Label" required maxlength="64" placeholder="<%= index === 0 ? 'Alice owner' : 'Bob alternate' %>" /></label>
+            <label>Expected role<input name="<%= prefix %>Role" maxlength="64" placeholder="user or admin" /></label>
+            <label>Tenant / scope<input name="<%= prefix %>Tenant" maxlength="64" placeholder="tenant-a" /></label>
+            <label>Authentication type
+              <select name="<%= prefix %>AuthType" required>
+                <option value="bearer">Bearer token</option>
+                <option value="basic">HTTP Basic</option>
+                <option value="cookie">Cookie header</option>
+                <option value="api-key">API key header</option>
+                <option value="custom-headers">Custom headers JSON</option>
+              </select>
+            </label>
+            <label>API-key header name (API key only)
+              <input name="<%= prefix %>HeaderName" maxlength="128" placeholder="x-api-key" />
+            </label>
+            <label>Credential / custom headers JSON
+              <textarea name="<%= prefix %>Credential" required maxlength="8192" rows="3" autocomplete="off"
+                placeholder='<%= index === 0 ? "owner-local-token-1234567890" : "alternate-local-token-1234567890" %>'></textarea>
+            </label>
+          </fieldset>
+        <% }); %>
+      </div>
+      <button type="submit">Run authorized scan</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/footer') %>

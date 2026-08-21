@@ -1,0 +1,48 @@
+rules:
+  - id: python-request-id-object-lookup
+    languages: [python]
+    message: A request-controlled identifier reaches an object lookup; verify owner or tenant authorization after retrieval.
+    severity: WARNING
+    metadata:
+      category: bola
+      title: Request identifier reaches object lookup
+      confidence: medium
+      severity_label: high
+      owasp_id: API1:2023
+      recommendation: Scope the query to the authenticated owner or tenant and deny when no authorized row exists.
+    pattern-either:
+      - pattern: $DB.query($MODEL).get($REQUEST.path_params[$KEY])
+      - pattern: $MODEL.objects.get(id=$REQUEST.path_params[$KEY])
+
+  - id: python-admin-route-review
+    languages: [python]
+    message: An admin-like endpoint is declared without a visible authorization dependency in this decorator.
+    severity: WARNING
+    metadata:
+      category: bfla
+      title: Admin-like endpoint needs authorization review
+      confidence: medium
+      severity_label: high
+      owasp_id: API5:2023
+      recommendation: Attach a deny-by-default role dependency and test access with a lower-privilege identity.
+    patterns:
+      - pattern: |
+          @$APP.$METHOD($PATH)
+          def $FUNC(...):
+            ...
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: .*admin.*
+
+  - id: python-client-controlled-role
+    languages: [python]
+    message: A client-controlled role value is assigned directly; verify property-level authorization and an allowlist.
+    severity: WARNING
+    metadata:
+      category: property-authorization
+      title: Client-controlled role assignment
+      confidence: high
+      severity_label: high
+      owasp_id: API3:2023
+      recommendation: Ignore privilege fields from ordinary input and authorize role changes through a dedicated privileged operation.
+    pattern: $USER.role = $REQUEST.json[$KEY]

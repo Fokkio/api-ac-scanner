@@ -1,0 +1,47 @@
+rules:
+  - id: java-unscoped-object-lookup
+    languages: [java]
+    message: A controller identifier reaches findById; verify an owner or tenant policy before returning the object.
+    severity: WARNING
+    metadata:
+      category: bola
+      title: Identifier reaches unscoped repository lookup
+      confidence: medium
+      severity_label: high
+      owasp_id: API1:2023
+      recommendation: Query through an owner-scoped repository method or enforce an authorization policy after retrieval.
+    pattern: $REPOSITORY.findById($ID)
+
+  - id: java-admin-delete-review
+    languages: [java]
+    message: An admin-like delete mapping requires explicit role enforcement.
+    severity: WARNING
+    metadata:
+      category: bfla
+      title: Admin-like delete mapping needs review
+      confidence: medium
+      severity_label: high
+      owasp_id: API5:2023
+      recommendation: Add method or route security and a negative test for non-admin users.
+    patterns:
+      - pattern-inside: |
+          @DeleteMapping($PATH)
+          $RET $METHOD(...) {
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: .*admin.*
+
+  - id: java-client-controlled-role
+    languages: [java]
+    message: A request role value is assigned directly; verify property-level authorization and an allowlist.
+    severity: WARNING
+    metadata:
+      category: property-authorization
+      title: Client-controlled role assignment
+      confidence: medium
+      severity_label: high
+      owasp_id: API3:2023
+      recommendation: Use a dedicated authorized role-change command and do not bind privilege fields from general request DTOs.
+    pattern: $USER.setRole($REQUEST.getRole())

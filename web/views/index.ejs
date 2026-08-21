@@ -1,67 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>API Access-Control Scanner</title>
-  <link rel="stylesheet" href="/styles.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo">⛨</span>
-      <span class="brand-text">api-<b>ac</b>-scanner</span>
-    </div>
-    <nav class="nav">
-      <a href="/">Home</a>
-      <a href="/scan/source">Scan Source</a>
-      <a href="/scan/domain">Scan Domain</a>
-    </nav>
-  </header>
-
-  <main class="container">
-    <section class="hero">
-      <h1>API Authorization &amp; Access-Control Scanner</h1>
-      <p class="sub">
-        Find <b>BOLA</b>, <b>BFLA</b>, <b>Mass Assignment</b> and other access-control
-        flaws in your APIs — then fix them. Built for penetration testers.
-      </p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="/scan/domain">Scan a live domain</a>
-        <a class="btn" href="/scan/source">Scan source code</a>
+<%- include('partials/header', { title: 'Quick scan' }) %>
+<main id="main-content">
+  <section class="hero">
+    <div class="hero-shell">
+      <div class="hero-content">
+        <div class="eyebrow">Local-first authorization scan</div>
+        <h1>Check your local API.<br /><span>Trace access-control gaps.</span></h1>
+        <p class="hero-copy">Check an authorized API with bounded requests, then move to identity-based verification when surface evidence needs context.</p>
       </div>
-    </section>
 
-    <section class="recent">
-      <h2>Recent scans</h2>
-      <% if (scans.length === 0) { %>
-        <p class="muted">No scans yet. Run one above to populate the dashboard.</p>
-      <% } else { %>
-        <div class="scan-grid">
-          <% scans.forEach(function(s){ const c = summarize(s.findings); %>
-            <a class="scan-card" href="/scan/<%= s.id %>">
-              <div class="scan-card-head">
-                <span class="scan-kind scan-kind-<%= s.kind %>"><%= s.kind %></span>
-                <span class="scan-target"><%= s.target %></span>
-              </div>
-              <div class="sev-pills">
-                <% ['Critical','High','Medium','Low'].forEach(function(k){ if(c[k]){ %>
-                  <span class="pill pill-<%= k %>"><%= k %> <%= c[k] %></span>
-                <% }}) %>
-                <% if (!c.Critical && !c.High && !c.Medium && !c.Low) { %>
-                  <span class="pill pill-none">no issues</span>
-                <% } %>
-              </div>
-            </a>
-          <% }) %>
+      <form class="url-form quick-scan-panel" action="/scans/quick" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="form-intro">
+          <h2>Scan a target</h2>
+          <p>GET, HEAD and OPTIONS only. No credentials or mutations.</p>
         </div>
-      <% } %>
-    </section>
-  </main>
+        <label class="field-label" for="target">Target URL</label>
+        <div class="url-control">
+          <input id="target" name="target" type="url" inputmode="url" required
+            maxlength="2048" placeholder="http://host.docker.internal:4100" autocomplete="url" />
+          <button type="submit">Run quick scan</button>
+        </div>
+        <label class="consent">
+          <input type="checkbox" name="authorized" value="yes" required />
+          <span>I own this target or have explicit authorization to test it.</span>
+        </label>
+      </form>
+    </div>
+  </section>
 
-  <footer class="foot">
-    <span>Local-only · OWASP API Top 10 risk rating + CVSS</span>
-  </footer>
-  <script src="/app.js"></script>
-</body>
-</html>
+  <section class="feature-grid" aria-label="Quick scan coverage">
+    <article>
+      <h2>Bounded by default</h2>
+      <p>Strict host and port allowlists, short timeouts, blocked redirects and capped response bodies keep the first pass controlled.</p>
+    </article>
+    <article>
+      <h2>Honest confidence</h2>
+      <p>Heuristics remain suspected until ownership, role and policy evidence can support a stronger conclusion.</p>
+    </article>
+    <article>
+      <h2>Identity-aware follow-up</h2>
+      <p>Compare owner, alternate and anonymous behavior without persisting supplied credentials in reports.</p>
+    </article>
+  </section>
+</main>
+<%- include('partials/footer') %>

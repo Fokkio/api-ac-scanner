@@ -1,0 +1,43 @@
+rules:
+  - id: php-route-id-object-lookup
+    languages: [php]
+    message: A route-controlled identifier reaches a model lookup; verify owner or tenant authorization.
+    severity: WARNING
+    metadata:
+      category: bola
+      title: Route identifier reaches object lookup
+      confidence: medium
+      severity_label: high
+      owasp_id: API1:2023
+      recommendation: Scope the query to the authenticated owner or enforce a policy before returning the model.
+    pattern: $MODEL::find($REQUEST->route($KEY))
+
+  - id: php-admin-delete-review
+    languages: [php]
+    message: An admin-like delete route requires explicit authorization middleware.
+    severity: WARNING
+    metadata:
+      category: bfla
+      title: Admin-like delete route needs review
+      confidence: medium
+      severity_label: high
+      owasp_id: API5:2023
+      recommendation: Attach role middleware or a policy and add a negative authorization test.
+    patterns:
+      - pattern: Route::delete($PATH, $HANDLER)
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: .*admin.*
+
+  - id: php-client-controlled-role
+    languages: [php]
+    message: A client-controlled role value is assigned directly; verify property-level authorization and an allowlist.
+    severity: WARNING
+    metadata:
+      category: property-authorization
+      title: Client-controlled role assignment
+      confidence: high
+      severity_label: high
+      owasp_id: API3:2023
+      recommendation: Ignore privilege fields from ordinary input and authorize role changes through a dedicated privileged operation.
+    pattern: $USER->role = $REQUEST->input($KEY)

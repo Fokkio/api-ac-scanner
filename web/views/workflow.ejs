@@ -1,0 +1,68 @@
+<%- include('partials/header', { title: 'Guarded workflow' }) %>
+<main id="main-content" class="narrow-page">
+  <section class="page-heading">
+    <div>
+      <div class="eyebrow">POST / PUT / PATCH / DELETE</div>
+      <h1>Guarded multi-step workflow</h1>
+      <p>Run up to eight ordered requests against disposable local test resources. Cleanup is attempted in reverse order even when a step fails.</p>
+    </div>
+  </section>
+  <section class="warning-card">
+    Only verified allowlisted local assets and query-free paths under <code>/__ac_test__/</code> are accepted.
+    Never use production data. A failed cleanup still requires manual investigation.
+  </section>
+  <section class="panel">
+    <form class="stack-form" action="/scans/workflow" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>Verified local asset
+        <select name="assetId" required>
+          <option value="">Select local asset</option>
+          <% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %></option><% }); %>
+        </select>
+      </label>
+
+      <h2>Workflow identity</h2>
+      <div class="two-column">
+        <label>Identity label<input name="identityLabel" required value="Workflow owner" maxlength="64" /></label>
+        <label>Role<input name="identityRole" value="owner" maxlength="64" /></label>
+        <label>Tenant<input name="identityTenant" value="local" maxlength="64" /></label>
+        <label>Authentication type
+          <select name="identityAuthType">
+            <option value="bearer">Bearer</option>
+            <option value="none">Authentication adapter only</option>
+            <option value="basic">HTTP Basic</option>
+            <option value="cookie">Cookie</option>
+            <option value="api-key">API key</option>
+            <option value="custom-headers">Custom headers JSON</option>
+          </select>
+        </label>
+        <label>API-key header<input name="identityHeaderName" placeholder="x-api-key" /></label>
+        <label>Credential<textarea name="identityCredential" maxlength="8192" autocomplete="off"></textarea></label>
+      </div>
+      <p class="muted">Choose adapter-only when JSON login supplies the workflow credential. HTTP Basic uses <code>username:password</code>. Credentials remain in the queued job only and are excluded from reports.</p>
+
+      <label>Optional authentication adapter JSON
+        <textarea name="authenticationAdapter" maxlength="20000" rows="9">{"type":"none"}</textarea>
+      </label>
+      <details>
+        <summary>JSON login adapter example</summary>
+        <pre>{"type":"json-login","path":"/__ac_test__/login","usernameField":"username","passwordField":"password","username":"fixture-owner","password":"fixture-password","tokenJsonPath":"tokens.access","headerName":"authorization","scheme":"Bearer"}</pre>
+        <p class="muted">The login request is same-origin, local-only and bounded. The returned token is held in memory and replaces all configured base credentials for workflow steps.</p>
+      </details>
+
+      <label>Ordered workflow steps JSON
+        <textarea name="workflowSteps" required maxlength="24000" rows="22">[
+  {"name":"create","method":"POST","path":"/__ac_test__/workflow-resource","body":{"apiAcScannerTest":true,"value":"created"},"expected":"allow"},
+  {"name":"replace","method":"PUT","path":"/__ac_test__/workflow-resource","body":{"apiAcScannerTest":true,"value":"replaced"},"expected":"allow"},
+  {"name":"patch","method":"PATCH","path":"/__ac_test__/workflow-resource","body":{"apiAcScannerTest":true,"patched":true},"expected":"allow"},
+  {"name":"read","method":"GET","path":"/__ac_test__/workflow-resource","expected":"allow"},
+  {"name":"delete","method":"DELETE","path":"/__ac_test__/workflow-resource","expected":"allow"}
+]</textarea>
+      </label>
+      <p class="muted">Each step declares an explicit expected <code>allow</code> or <code>deny</code>. A determinate mismatch is reported as verified against that declaration.</p>
+      <label>Confirmation<input name="confirmation" required placeholder="RUN DISPOSABLE WORKFLOW" autocomplete="off" /></label>
+      <button type="submit">Run disposable workflow</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/footer') %>

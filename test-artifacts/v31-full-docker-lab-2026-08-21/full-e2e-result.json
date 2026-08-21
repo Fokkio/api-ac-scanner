@@ -1,0 +1,672 @@
+{
+  "portal": {
+    "users": [
+      {
+        "username": "alice",
+        "heading": "Welcome, Alice Owner",
+        "visibleOrders": 1
+      },
+      {
+        "username": "bob",
+        "heading": "Welcome, Bob Viewer",
+        "visibleOrders": 1
+      },
+      {
+        "username": "admin",
+        "heading": "Welcome, Ada Admin",
+        "visibleOrders": 3
+      }
+    ],
+    "databaseBackedRoleViewsPassed": true
+  },
+  "scanner": {
+    "reports": [
+      {
+        "name": "bola-owner-vs-viewer",
+        "id": "d88e922566b6a59171639897cab9ec180cc02f80f8f7341a",
+        "kind": "deep",
+        "status": "done",
+        "counts": {
+          "passed": 4
+        },
+        "matrixRows": 6,
+        "matrixMatches": 6,
+        "matrix": [
+          {
+            "method": "GET",
+            "path": "/api/orders/1",
+            "identity": "Alice Owner",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 200,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/orders/1",
+            "identity": "Bob Viewer",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 403,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/orders/1",
+            "identity": "Anonymous",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 401,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/owner/summary",
+            "identity": "Alice Owner",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 200,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/owner/summary",
+            "identity": "Bob Viewer",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 403,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/owner/summary",
+            "identity": "Anonymous",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 401,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Alternate identity was denied object access",
+            "ruleId": "deep-object-access-denied",
+            "evidence": {
+              "ownerStatus": 200,
+              "alternateStatus": 403,
+              "ownerBodyBytes": 117,
+              "alternateBodyBytes": 36,
+              "bodySimilarity": 0.301
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Anonymous access was denied",
+            "ruleId": "deep-anonymous-object-access",
+            "evidence": {
+              "authorizedStatus": 200,
+              "anonymousStatus": 401,
+              "anonymousBodyBytes": 35,
+              "bodySimilarity": 0.303
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Lower-privilege identity was denied function access",
+            "ruleId": "deep-function-access-denied",
+            "evidence": {
+              "privilegedStatus": 200,
+              "lowerPrivilegeStatus": 403,
+              "lowerPrivilegeBodyBytes": 31,
+              "lowerPrivilegeBodyTruncated": false
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Anonymous access was denied",
+            "ruleId": "deep-anonymous-function-access",
+            "evidence": {
+              "authorizedStatus": 200,
+              "anonymousStatus": 401,
+              "anonymousBodyBytes": 35,
+              "bodySimilarity": 0.329
+            }
+          }
+        ]
+      },
+      {
+        "name": "bfla-admin-vs-owner",
+        "id": "f485e936ea6b335569560dde7b864ee0ab4a21be7d2a2ac9",
+        "kind": "deep",
+        "status": "done",
+        "counts": {
+          "passed": 4
+        },
+        "matrixRows": 6,
+        "matrixMatches": 6,
+        "matrix": [
+          {
+            "method": "GET",
+            "path": "/api/orders/3",
+            "identity": "Ada Admin",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 200,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/orders/3",
+            "identity": "Alice Owner",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 403,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/orders/3",
+            "identity": "Anonymous",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 401,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/admin/reports",
+            "identity": "Ada Admin",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 200,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/admin/reports",
+            "identity": "Alice Owner",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 403,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/admin/reports",
+            "identity": "Anonymous",
+            "expected": "deny",
+            "actual": "deny",
+            "actualStatus": 401,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Alternate identity was denied object access",
+            "ruleId": "deep-object-access-denied",
+            "evidence": {
+              "ownerStatus": 200,
+              "alternateStatus": 403,
+              "ownerBodyBytes": 102,
+              "alternateBodyBytes": 36,
+              "bodySimilarity": 0.304
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Anonymous access was denied",
+            "ruleId": "deep-anonymous-object-access",
+            "evidence": {
+              "authorizedStatus": 200,
+              "anonymousStatus": 401,
+              "anonymousBodyBytes": 35,
+              "bodySimilarity": 0.263
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Lower-privilege identity was denied function access",
+            "ruleId": "deep-function-access-denied",
+            "evidence": {
+              "privilegedStatus": 200,
+              "lowerPrivilegeStatus": 403,
+              "lowerPrivilegeBodyBytes": 31,
+              "lowerPrivilegeBodyTruncated": false
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Anonymous access was denied",
+            "ruleId": "deep-anonymous-function-access",
+            "evidence": {
+              "authorizedStatus": 200,
+              "anonymousStatus": 401,
+              "anonymousBodyBytes": 35,
+              "bodySimilarity": 0.342
+            }
+          }
+        ]
+      },
+      {
+        "name": "mutation-post-delete",
+        "id": "e2f1e6cc0c8fe3940f34d841182acc7d40d63c4d7188628f",
+        "kind": "mutation",
+        "status": "done",
+        "counts": {
+          "passed": 1
+        },
+        "matrixRows": 0,
+        "matrixMatches": 0,
+        "matrix": [],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Local test resource was created and cleaned up",
+            "ruleId": "local-test-resource-create-cleanup",
+            "evidence": {
+              "createStatus": 201,
+              "cleanupStatus": 204,
+              "cleanupSucceeded": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "workflow-bearer",
+        "id": "9c8a4918a84ebe0e6d5b6fd819c99603679be2c8eff8bb1c",
+        "kind": "workflow",
+        "status": "done",
+        "counts": {
+          "passed": 2
+        },
+        "matrixRows": 1,
+        "matrixMatches": 1,
+        "matrix": [
+          {
+            "method": "POST",
+            "path": "/__ac_test__/resource-bearer",
+            "identity": "Alice bearer",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 201,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Workflow step create-with-bearer completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "create-with-bearer",
+              "method": "POST",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 201
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow cleanup completed",
+            "ruleId": "guarded-reverse-cleanup",
+            "evidence": {
+              "pathsAttempted": 1,
+              "cleanupSucceeded": true,
+              "cleanup:/__ac_test__/resource-bearer": 204,
+              "cleanupVerified:/__ac_test__/resource-bearer": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "workflow-basic",
+        "id": "777687cc8474c6891e5921dd69266b9ca01df96727b72e5a",
+        "kind": "workflow",
+        "status": "done",
+        "counts": {
+          "passed": 2
+        },
+        "matrixRows": 1,
+        "matrixMatches": 1,
+        "matrix": [
+          {
+            "method": "POST",
+            "path": "/__ac_test__/resource-basic",
+            "identity": "Alice basic",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 201,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Workflow step create-with-basic completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "create-with-basic",
+              "method": "POST",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 201
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow cleanup completed",
+            "ruleId": "guarded-reverse-cleanup",
+            "evidence": {
+              "pathsAttempted": 1,
+              "cleanupSucceeded": true,
+              "cleanup:/__ac_test__/resource-basic": 204,
+              "cleanupVerified:/__ac_test__/resource-basic": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "workflow-cookie",
+        "id": "b6a0763a87e63435b844cf8b6f195a803f05a3c294e84625",
+        "kind": "workflow",
+        "status": "done",
+        "counts": {
+          "passed": 2
+        },
+        "matrixRows": 1,
+        "matrixMatches": 1,
+        "matrix": [
+          {
+            "method": "POST",
+            "path": "/__ac_test__/resource-cookie",
+            "identity": "Alice cookie",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 201,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Workflow step create-with-cookie completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "create-with-cookie",
+              "method": "POST",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 201
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow cleanup completed",
+            "ruleId": "guarded-reverse-cleanup",
+            "evidence": {
+              "pathsAttempted": 1,
+              "cleanupSucceeded": true,
+              "cleanup:/__ac_test__/resource-cookie": 204,
+              "cleanupVerified:/__ac_test__/resource-cookie": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "workflow-api-key",
+        "id": "4c518811d0349517b6ee2deade4e1bb407d9bf55c0c9482c",
+        "kind": "workflow",
+        "status": "done",
+        "counts": {
+          "passed": 2
+        },
+        "matrixRows": 1,
+        "matrixMatches": 1,
+        "matrix": [
+          {
+            "method": "POST",
+            "path": "/__ac_test__/resource-api-key",
+            "identity": "Alice api-key",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 201,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Workflow step create-with-api-key completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "create-with-api-key",
+              "method": "POST",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 201
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow cleanup completed",
+            "ruleId": "guarded-reverse-cleanup",
+            "evidence": {
+              "pathsAttempted": 1,
+              "cleanupSucceeded": true,
+              "cleanup:/__ac_test__/resource-api-key": 204,
+              "cleanupVerified:/__ac_test__/resource-api-key": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "workflow-custom-headers",
+        "id": "3da744c98e40b354a47c4ff65f902cd696d16581a5ecaeae",
+        "kind": "workflow",
+        "status": "done",
+        "counts": {
+          "passed": 2
+        },
+        "matrixRows": 1,
+        "matrixMatches": 1,
+        "matrix": [
+          {
+            "method": "POST",
+            "path": "/__ac_test__/resource-custom-headers",
+            "identity": "Alice custom-headers",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 201,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Workflow step create-with-custom-headers completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "create-with-custom-headers",
+              "method": "POST",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 201
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow cleanup completed",
+            "ruleId": "guarded-reverse-cleanup",
+            "evidence": {
+              "pathsAttempted": 1,
+              "cleanupSucceeded": true,
+              "cleanup:/__ac_test__/resource-custom-headers": 204,
+              "cleanupVerified:/__ac_test__/resource-custom-headers": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "workflow-json-login",
+        "id": "18c13b06a0b4555b17fa2991cbf1810cba522354aaba1510",
+        "kind": "workflow",
+        "status": "done",
+        "counts": {
+          "passed": 6
+        },
+        "matrixRows": 5,
+        "matrixMatches": 5,
+        "matrix": [
+          {
+            "method": "POST",
+            "path": "/__ac_test__/resource-json-login",
+            "identity": "Alice json-login",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 201,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "PUT",
+            "path": "/__ac_test__/resource-json-login",
+            "identity": "Alice json-login",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 200,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "PATCH",
+            "path": "/__ac_test__/resource-json-login",
+            "identity": "Alice json-login",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 200,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "GET",
+            "path": "/__ac_test__/resource-json-login",
+            "identity": "Alice json-login",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 200,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          },
+          {
+            "method": "DELETE",
+            "path": "/__ac_test__/resource-json-login",
+            "identity": "Alice json-login",
+            "expected": "allow",
+            "actual": "allow",
+            "actualStatus": 204,
+            "matchesExpectation": true,
+            "skippedAfterPriorFailure": false
+          }
+        ],
+        "findings": [
+          {
+            "state": "passed",
+            "title": "Workflow step create completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "create",
+              "method": "POST",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 201
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow step replace completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "replace",
+              "method": "PUT",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 200
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow step patch completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "patch",
+              "method": "PATCH",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 200
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow step read completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "read",
+              "method": "GET",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 200
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow step delete completed",
+            "ruleId": "workflow-step-result",
+            "evidence": {
+              "step": "delete",
+              "method": "DELETE",
+              "expected": "allow",
+              "actual": "allow",
+              "status": 204
+            }
+          },
+          {
+            "state": "passed",
+            "title": "Workflow cleanup completed",
+            "ruleId": "guarded-reverse-cleanup",
+            "evidence": {
+              "pathsAttempted": 1,
+              "cleanupSucceeded": true,
+              "cleanup:/__ac_test__/resource-json-login": 404,
+              "cleanupVerified:/__ac_test__/resource-json-login": true
+            }
+          }
+        ]
+      }
+    ],
+    "asset": {
+      "origin": "http://demo-api:4100",
+      "verified": true
+    },
+    "reportCount": 9
+  },
+  "secretLeakDetected": false
+}

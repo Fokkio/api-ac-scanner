@@ -1,0 +1,29 @@
+<%- include('partials/header', { title: 'Source + runtime correlation' }) %>
+<main id="main-content" class="narrow-page">
+  <section class="page-heading">
+    <div>
+      <div class="eyebrow">CORRELATED EVIDENCE</div>
+      <h1>Join source and runtime evidence</h1>
+      <p>Select completed scans. Correlation requires the same vulnerability category and a matching normalized endpoint.</p>
+    </div>
+  </section>
+  <section class="panel">
+    <form class="stack-form" action="/scans/correlation" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>Source scan
+        <select name="sourceScanId" required>
+          <option value="">Select completed source scan</option>
+          <% sourceScans.forEach(function(scan) { %><option value="<%= scan.id %>"><%= scan.createdAt %> / <%= scan.findings.length %> findings</option><% }); %>
+        </select>
+      </label>
+      <label>Deep runtime scan
+        <select name="dynamicScanId" required>
+          <option value="">Select completed deep scan</option>
+          <% dynamicScans.forEach(function(scan) { %><option value="<%= scan.id %>"><%= scan.createdAt %> / <%= scan.target %></option><% }); %>
+        </select>
+      </label>
+      <button type="submit">Correlate evidence</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/footer') %>

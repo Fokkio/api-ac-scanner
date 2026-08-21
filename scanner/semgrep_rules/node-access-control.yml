@@ -1,0 +1,48 @@
+rules:
+  - id: node-request-id-object-lookup
+    languages: [javascript, typescript]
+    message: A request-controlled identifier reaches an object lookup; verify owner or tenant authorization after retrieval.
+    severity: WARNING
+    metadata:
+      category: bola
+      title: Request identifier reaches object lookup
+      confidence: medium
+      severity_label: high
+      owasp_id: API1:2023
+      recommendation: Load the object and enforce an owner or tenant policy on the server before returning it.
+    patterns:
+      - pattern-either:
+          - pattern: 'prisma.$MODEL.findUnique({where: {id: $REQ.params.$ID}})'
+          - pattern: $MODEL.findById($REQ.params.$ID)
+
+  - id: node-admin-route-review
+    languages: [javascript, typescript]
+    message: An admin-like route is registered without an explicit authorization middleware in this route declaration.
+    severity: WARNING
+    metadata:
+      category: bfla
+      title: Admin-like route needs authorization review
+      confidence: medium
+      severity_label: high
+      owasp_id: API5:2023
+      recommendation: Require a deny-by-default role policy at the route boundary and test a lower-privilege identity.
+    patterns:
+      - pattern-either:
+          - pattern: $ROUTER.post($PATH, $HANDLER)
+          - pattern: $ROUTER.delete($PATH, $HANDLER)
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: .*admin.*
+
+  - id: node-client-controlled-role
+    languages: [javascript, typescript]
+    message: A client-controlled role value is assigned directly; verify property-level authorization and an allowlist.
+    severity: WARNING
+    metadata:
+      category: property-authorization
+      title: Client-controlled role assignment
+      confidence: high
+      severity_label: high
+      owasp_id: API3:2023
+      recommendation: Ignore privilege fields from ordinary input and authorize role changes through a dedicated privileged operation.
+    pattern: $USER.role = $REQ.body.role

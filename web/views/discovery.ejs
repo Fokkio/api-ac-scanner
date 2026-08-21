@@ -1,0 +1,30 @@
+<%- include('partials/header', { title: 'API discovery' }) %>
+<main id="main-content" class="narrow-page">
+  <section class="page-heading">
+    <div>
+      <div class="eyebrow">EVIDENCE-BASED DISCOVERY</div>
+      <h1>Build an endpoint inventory</h1>
+      <p>Import OpenAPI/Swagger, HAR, Postman collections or supported source files. V3.1 does not brute-force or crawl unknown routes.</p>
+    </div>
+  </section>
+  <section class="panel">
+    <form class="stack-form" action="/scans/discovery" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>Verified asset
+        <select name="assetId" required>
+          <option value="">Select an asset</option>
+          <% assets.forEach(function(asset) { %>
+            <option value="<%= asset.id %>"><%= asset.origin %></option>
+          <% }); %>
+        </select>
+      </label>
+      <label>Discovery artifacts
+        <input name="artifacts" type="file" required multiple
+          accept=".json,.yaml,.yml,.har,.js,.jsx,.ts,.tsx,.py,.php,.java" />
+        <small>Maximum 25 files and 1 MiB per file. Uploaded files are deleted after the job.</small>
+      </label>
+      <button type="submit">Discover endpoints</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/footer') %>

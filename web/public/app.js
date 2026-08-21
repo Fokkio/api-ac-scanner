@@ -1,114 +1,104 @@
-// api-ac-scanner front-end glue. Vanilla JS only — no framework.
 (function () {
   "use strict";
 
-  // Wire up "Preview fix" buttons (event delegation).
-  document.addEventListener("click", async function (e) {
-    const btn = e.target.closest('[data-act="preview"]');
-    if (!btn) return;
-    e.preventDefault();
-    const scan = btn.getAttribute("data-scan");
-    const rule = btn.getAttribute("data-rule");
-    const file = btn.getAttribute("data-file");
-    const panelId = "fix-" + btn.getAttribute("data-rule") + "-" + scan;
-    let panel = btn.parentElement.parentElement.querySelector(".fix-panel");
-    if (!panel) return;
-    panel.hidden = false;
-    panel.innerHTML = "<p class='muted'>Generating preview…</p>";
+  const body = document.body;
+  const navToggle = document.querySelector("[data-nav-toggle]");
+  const primaryNav = document.querySelector("[data-primary-nav]");
 
-    try {
-      const resp = await fetch("/api/fix/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanId: scan, ruleId: rule, file: file }),
-      });
-      const data = await resp.json();
-      if (data.error) {
-        panel.innerHTML = "<p class='muted'>" + escapeHtml(data.error) + "</p>";
-        return;
+  if (body && navToggle && primaryNav) {
+    body.classList.add("nav-enhanced");
+
+    const setNavigationOpen = function (open) {
+      navToggle.setAttribute("aria-expanded", String(open));
+      navToggle.textContent = open ? "Close" : "Menu";
+      primaryNav.setAttribute("data-open", String(open));
+    };
+
+    navToggle.addEventListener("click", function () {
+      setNavigationOpen(navToggle.getAttribute("aria-expanded") !== "true");
+    });
+
+    primaryNav.addEventListener("click", function (event) {
+      if (event.target instanceof HTMLAnchorElement) {
+        setNavigationOpen(false);
       }
-      panel.innerHTML = renderFixPanel(data, scan, rule, file);
-      wireApply(panel, scan, rule, file);
-    } catch (err) {
-      panel.innerHTML = "<p class='muted'>Preview failed: " + escapeHtml(String(err)) + "</p>";
-    }
-  });
+    });
 
-  function renderFixPanel(d, scan, rule, file) {
-    const changes = (d.changes || [])
-      .map((c) => "<li>" + escapeHtml(c) + "</li>")
-      .join("");
-    return (
-      "<h4>Proposed fix for " + escapeHtml(rule) + "</h4>" +
-      (changes ? "<ul class='muted'>" + changes + "</ul>" : "") +
-      "<div class='diff'>" + diffHtml(d.original, d.fixed) + "</div>" +
-      "<div style='margin-top:12px;display:flex;gap:8px'>" +
-      "<button class='btn btn-primary btn-sm' data-act='apply'>Apply to my copy</button>" +
-      "<span class='muted' style='align-self:center;font-size:12px'>(safe: your original is untouched until you click)</span>" +
-      "</div>"
-    );
-  }
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        setNavigationOpen(false);
+        navToggle.focus();
+      }
+    });
 
-  function wireApply(panel, scan, rule, file) {
-    const apply = panel.querySelector('[data-act="apply"]');
-    if (!apply) return;
-    apply.addEventListener("click", async function () {
-      apply.disabled = true;
-      apply.textContent = "Applying…";
-      try {
-        const resp = await fetch("/api/fix/apply", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scanId: scan, ruleId: rule, file: file }),
-        });
-        const data = await resp.json();
-        if (data.ok) {
-          panel.innerHTML = "<p class='muted'>✓ Fix applied to your uploaded copy.</p>";
-        } else {
-          panel.innerHTML = "<p class='muted'>Apply failed: " + escapeHtml(JSON.stringify(data)) + "</p>";
-        }
-      } catch (err) {
-        panel.innerHTML = "<p class='muted'>Apply failed: " + escapeHtml(String(err)) + "</p>";
+    const currentPath = window.location.pathname;
+    primaryNav.querySelectorAll("a[href]").forEach(function (link) {
+      const linkPath = new URL(link.href, window.location.origin).pathname;
+      const isCurrent = linkPath === "/"
+        ? currentPath === "/"
+        : currentPath === linkPath || currentPath.startsWith(linkPath + "/");
+      if (isCurrent) {
+        link.setAttribute("aria-current", "page");
       }
     });
   }
 
-  function diffHtml(orig, fixed) {
-    const o = orig.split("\n");
-    const f = fixed.split("\n");
-    let html = "";
-    let i = 0,
-      j = 0;
-    // simple line diff (LCS-free): show removed then added context
-    const set = new Set(o);
-    while (i < o.length && j < f.length) {
-      if (o[i] === f[j]) {
-        html += escapeHtml(o[i]) + "\n";
-        i++;
-        j++;
-      } else if (set.has(f[j])) {
-        html += "<span class='del'>- " + escapeHtml(o[i]) + "</span>\n";
-        i++;
-      } else {
-        html += "<span class='add'>+ " + escapeHtml(f[j]) + "</span>\n";
-        j++;
+  const forms = Array.from(document.querySelectorAll("form"));
+  forms.forEach(function (form) {
+    form.addEventListener("submit", function () {
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (!submitButton) return;
+      submitButton.dataset.originalLabel = submitButton.textContent || "";
+      submitButton.textContent = submitButton.dataset.loadingLabel || "Working...";
+      submitButton.setAttribute("aria-busy", "true");
+      submitButton.disabled = true;
+    });
+  });
+
+  window.addEventListener("pageshow", function () {
+    document.querySelectorAll('button[type="submit"][aria-busy="true"]').forEach(function (button) {
+      button.textContent = button.dataset.originalLabel || "Submit";
+      button.removeAttribute("aria-busy");
+      button.disabled = false;
+    });
+  });
+
+  const reportPage = document.querySelector("[data-report-id]");
+  if (!reportPage) return;
+
+  const reportId = reportPage.getAttribute("data-report-id");
+  const initialStatus = reportPage.getAttribute("data-report-status");
+  if (!reportId || (initialStatus !== "queued" && initialStatus !== "running")) return;
+
+  const statusElement = document.querySelector("#scan-status");
+  const stageElement = document.querySelector("#scan-stage");
+  const progressElement = document.querySelector("#scan-progress");
+  let pollHandle;
+
+  async function pollReport() {
+    try {
+      const response = await fetch(`/api/scans/${encodeURIComponent(reportId)}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`status ${response.status}`);
+
+      const payload = await response.json();
+      const scan = payload.scan;
+      if (statusElement) statusElement.textContent = scan.status;
+      if (stageElement) stageElement.textContent = scan.stage;
+      if (progressElement) progressElement.value = scan.progress;
+
+      if (scan.status === "done" || scan.status === "error") {
+        clearInterval(pollHandle);
+        window.location.reload();
       }
+    } catch (_error) {
+      if (stageElement) stageElement.textContent = "Waiting for the service to reconnect";
     }
-    while (i < o.length) {
-      html += "<span class='del'>- " + escapeHtml(o[i]) + "</span>\n";
-      i++;
-    }
-    while (j < f.length) {
-      html += "<span class='add'>+ " + escapeHtml(f[j]) + "</span>\n";
-      j++;
-    }
-    return html;
   }
 
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  }
-})();
+  pollHandle = window.setInterval(pollReport, 1500);
+  window.addEventListener("beforeunload", function () {
+    clearInterval(pollHandle);
+  });
+}());
