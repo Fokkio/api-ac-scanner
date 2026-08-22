@@ -59,7 +59,8 @@ class SourceScanTests(unittest.TestCase):
             with patch("app.source_scan.subprocess.run", return_value=SimpleNamespace(returncode=1)):
                 # Should not raise; output is read back from the spooled file.
                 with patch("app.source_scan.tempfile.NamedTemporaryFile") as tf:
-                    fh = type("FH", (), {"tell": lambda self: len(b'{"results": []}'),
+                    fh = type("FH", (), {"name": "/tmp/fake.json",
+                                         "tell": lambda self: len(b'{"results": []}'),
                                          "seek": lambda self, *a: None,
                                          "read": lambda self: b'{"results": []}'})()
                     tf.return_value.__enter__.return_value = fh
