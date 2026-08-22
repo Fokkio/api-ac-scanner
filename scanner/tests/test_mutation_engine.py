@@ -74,6 +74,14 @@ class MutationEngineTests(unittest.IsolatedAsyncioTestCase):
                 MutationTargetAuthorization(mode="local"),
             )
 
+    async def test_rejects_parent_traversal_in_mutation_path(self):
+        with self.assertRaises(PolicyError):
+            await run_mutation_scan(
+                "http://demo-api:4100", "/__ac_test__/../admin", {"apiAcScannerTest": True},
+                TestIdentity("Tester", "", "", {"authorization": "Bearer test-token-123456"}),
+                MutationTargetAuthorization(mode="local"),
+            )
+
     @patch("app.mutation_engine.BoundedHttpClient.create", new_callable=AsyncMock)
     async def test_attempts_cleanup_after_create_request_failure(self, create_client):
         client = CreateTimeoutClient()

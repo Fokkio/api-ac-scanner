@@ -10,6 +10,7 @@ from app.errors import OutboundRequestError, PolicyError
 from app.findings import create_finding
 from app.outbound import BoundedHttpClient
 from app.remote_authorization import MutationTargetAuthorization, authorize_state_changing_client
+from app.authorization_signals import HTTP_OK, HTTP_MULTIPLE_CHOICES
 
 MUTATION_BODY_LIMIT = 16_384
 
@@ -23,8 +24,8 @@ async def run_mutation_scan(
 ) -> dict[str, list[Any]]:
     """POSTs one marked test resource and DELETEs the same exact path."""
 
-    if not path.startswith("/__ac_test__/") or "?" in path:
-        raise PolicyError("Mutation path must be inside the /__ac_test__/ namespace without a query")
+    if not path.startswith("/__ac_test__/") or "?" in path or ".." in path:
+        raise PolicyError("Mutation path must be inside the /__ac_test__/ namespace without a query or parent traversal")
     if body.get("apiAcScannerTest") is not True:
         raise PolicyError("Mutation body must contain apiAcScannerTest=true")
     encoded_body = json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -44,7 +45,7 @@ async def run_mutation_scan(
         except OutboundRequestError:
             cleaned = None
 
-    create_succeeded = created is not None and 200 <= created.status < 300
+    create_succeeded = created is not None and HTTP_OK <= created.status < HTTP_MULTIPLE_CHOICES
     cleanup_succeeded = cleaned is not None and (
         cleaned.status in {200, 202, 204}
         or (not create_succeeded and cleaned.status == 404)
