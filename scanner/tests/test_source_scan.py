@@ -50,14 +50,23 @@ class SourceScanTests(unittest.TestCase):
                 with self.assertRaises(ScannerExecutionError):
                     source_scan._execute_semgrep(["semgrep"])
 
-    def test_invokes_semgrep_with_no_error_flag(self):
-        captured = {}
-        def fake_run(command, **_kwargs):
-            captured["command"] = list(command)
-            return SimpleNamespace(returncode=0, stdout=b"", stderr=None)
-        with patch("app.source_scan.subprocess.run", side_effect=fake_run):
-            source_scan._execute_semgrep(["semgrep", "scan"])
-        self.assertIn("--no-error", captured["command"])
+    def test_treats_findings_exit_code_as_success(self):
+        # Semgrep returns exit code 1 when it finds matches; that is a normal
+        # (non-empty) result, not an analyzer failure.
+        with tempfile.TemporaryDirectory() as tmp:
+            out = (Path(tmp) / "out.txt")
+            out.write_bytes(b'{"results": []}')
+            with patch("app.source_scan.subprocess.run", return_value=SimpleNamespace(returncode=1)):
+                # Should not raise; output is read back from the spooled file.
+                with patch("app.source_scan.tempfile.TemporaryFile") as tf:
+                    fh = type("FH", (), {"tell": lambda self: len(b'{"results": []}'),
+                                         "seek": lambda self, *a: None,
+                                         "read": lambda self: b'{"results": []}'})()
+                    tf.return_value.__enter__.return_value = fh
+                    result = source_scan._execute_semgrep(["semgrep"])
+            self.assertEqual(result, '{"results": []}')
+
+    def test_fails_closed_on_malformed_result_metadata(self):
         with tempfile.TemporaryDirectory() as root:
             scan_path = Path(root, "request").resolve()
             scan_path.mkdir()

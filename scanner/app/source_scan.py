@@ -55,7 +55,7 @@ def _execute_semgrep(command: list[str]) -> str:
             timeout=SCAN_TIMEOUT_SECONDS,
             check=False,
         )
-        if completed.returncode != 0:
+        if completed.returncode == 2:
             raise ScannerExecutionError("Static analyzer failed before producing a complete result")
         output_size = output_file.tell()
         if output_size > MAX_ANALYZER_OUTPUT_BYTES:
