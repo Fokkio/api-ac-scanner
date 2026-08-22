@@ -28,6 +28,18 @@ class BodySignalTests(unittest.TestCase):
             "indeterminate",
         )
 
+    def test_401_with_success_body_downgrades_to_indeterminate(self):
+        self.assertEqual(
+            classify_decision(401, b'{"ok":true}'),
+            "indeterminate",
+        )
+
+    def test_3xx_is_not_allow_and_500_is_not_allow(self):
+        # Regression: a 3xx/5xx status must never be treated as an allow.
+        self.assertNotEqual(classify_decision(301, b""), "allow")
+        self.assertNotEqual(classify_decision(500, b""), "allow")
+        self.assertEqual(classify_decision(500, b""), "indeterminate")
+
     def test_body_signal_detects_denied_json(self):
         self.assertEqual(detect_body_signal(b'{"error":"not authorized"}'), "denied")
 

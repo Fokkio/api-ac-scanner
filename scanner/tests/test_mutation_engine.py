@@ -48,6 +48,7 @@ class MutationEngineTests(unittest.IsolatedAsyncioTestCase):
             "http://demo-api:4100", "/__ac_test__/resource-1",
             {"apiAcScannerTest": True, "value": "temporary"},
             TestIdentity("Tester", "tester", "local", {"authorization": "Bearer test-token-123456"}),
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual([call[0] for call in client.calls], ["POST", "DELETE"])
         self.assertEqual(result["findings"][0]["state"], "passed")
@@ -61,6 +62,7 @@ class MutationEngineTests(unittest.IsolatedAsyncioTestCase):
                 "https://example.com", "/__ac_test__/resource-1",
                 {"apiAcScannerTest": True},
                 TestIdentity("Tester", "", "", {"authorization": "Bearer test-token-123456"}),
+                MutationTargetAuthorization(mode="local"),
             )
         self.assertEqual(client.calls, [])
 
@@ -69,6 +71,7 @@ class MutationEngineTests(unittest.IsolatedAsyncioTestCase):
             await run_mutation_scan(
                 "http://demo-api:4100", "/api/orders/1", {"apiAcScannerTest": True},
                 TestIdentity("Tester", "", "", {"authorization": "Bearer test-token-123456"}),
+                MutationTargetAuthorization(mode="local"),
             )
 
     @patch("app.mutation_engine.BoundedHttpClient.create", new_callable=AsyncMock)
@@ -79,6 +82,7 @@ class MutationEngineTests(unittest.IsolatedAsyncioTestCase):
             "http://demo-api:4100", "/__ac_test__/resource-1",
             {"apiAcScannerTest": True},
             TestIdentity("Tester", "", "", {"authorization": "Bearer test-token-123456"}),
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual([call[0] for call in client.calls], ["POST", "DELETE"])
         self.assertEqual(result["findings"][0]["state"], "needs-verification")

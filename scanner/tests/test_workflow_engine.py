@@ -62,6 +62,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
         result = await run_workflow_scan(
             "http://demo-api:4100", TestIdentity("Owner", "owner", "local", {"authorization": "Bearer static-token-123456"}),
             {"type": "none"}, steps,
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual([call[0] for call in client.calls], ["POST", "PUT", "PATCH", "GET", "DELETE", "DELETE"])
         self.assertTrue(all(row["matchesExpectation"] for row in result["matrix"]))
@@ -79,6 +80,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
                 "token_json_path": "tokens.access", "header_name": "authorization", "scheme": "Bearer",
             },
             [{"name": "read", "method": "GET", "path": "/__ac_test__/one", "body": None, "expected": "allow"}],
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual(client.calls[0][0:2], ("POST", "/__ac_test__/login"))
         self.assertEqual(client.calls[0][2], {})
@@ -100,6 +102,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
                 "token_json_path": "tokens.access", "header_name": "authorization", "scheme": "Bearer",
             },
             [{"name": "read", "method": "GET", "path": "/__ac_test__/one", "body": None, "expected": "allow"}],
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual(client.calls[1][2], {"authorization": "Bearer issued-token-123456"})
 
@@ -115,6 +118,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
                 "token_json_path": "tokens.access", "header_name": "authorization", "scheme": "Bearer",
             },
             [{"name": "read", "method": "GET", "path": "/__ac_test__/one", "body": None, "expected": "allow"}],
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertIn("ก".encode("utf-8"), client.calls[0][3])
 
@@ -130,6 +134,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
                 {"name": "create", "method": "POST", "path": "/__ac_test__/one", "body": {"apiAcScannerTest": True}, "expected": "allow"},
                 {"name": "read", "method": "GET", "path": "/__ac_test__/one", "body": None, "expected": "allow"},
             ],
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual([call[0] for call in client.calls], ["POST", "DELETE"])
         self.assertEqual(result["matrix"][1]["actual"], "indeterminate")
@@ -145,6 +150,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
             TestIdentity("Owner", "owner", "local", {"authorization": "Bearer static-token-123456"}),
             {"type": "none"},
             [{"name": "create", "method": "POST", "path": "/__ac_test__/one", "body": {"apiAcScannerTest": True}, "expected": "allow"}],
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual(result["findings"][-1]["state"], "needs-verification")
         self.assertFalse(result["findings"][-1]["evidence"]["cleanupSucceeded"])
@@ -161,6 +167,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
                 "name": "unicode-create", "method": "POST", "path": "/__ac_test__/one",
                 "body": {"apiAcScannerTest": True, "value": "ก" * 1000}, "expected": "allow",
             }],
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual(result["matrix"][0]["actual"], "allow")
         self.assertIn("ก".encode("utf-8"), client.calls[0][3])
@@ -171,6 +178,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
                 "http://demo-api:4100", TestIdentity("Owner", "", "", {"authorization": "Bearer static-token-123456"}),
                 {"type": "none"},
                 [{"name": "unsafe", "method": "DELETE", "path": "/api/orders/1", "body": None, "expected": "deny"}],
+                MutationTargetAuthorization(mode="local"),
             )
 
     @patch("app.workflow_engine.BoundedHttpClient.create", new_callable=AsyncMock)
@@ -181,6 +189,7 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
             "http://demo-api:4100", TestIdentity("User", "user", "local", {"authorization": "Bearer static-token-123456"}),
             {"type": "none"},
             [{"name": "forbidden-create", "method": "POST", "path": "/__ac_test__/one", "body": {"apiAcScannerTest": True}, "expected": "deny"}],
+            MutationTargetAuthorization(mode="local"),
         )
         self.assertEqual(result["findings"][0]["state"], "verified")
 
