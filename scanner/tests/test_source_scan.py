@@ -54,6 +54,11 @@ class SourceScanTests(unittest.TestCase):
         captured = {}
         def fake_run(command, **_kwargs):
             captured["command"] = list(command)
+            # Simulate semgrep writing a report to the -o file.
+            for i, token in enumerate(command):
+                if token == "-o" and i + 1 < len(command):
+                    with open(command[i + 1], "w", encoding="utf-8") as fh:
+                        fh.write('{"results": []}')
             return SimpleNamespace(returncode=0, stdout=b"", stderr=None)
         with tempfile.TemporaryDirectory() as root:
             scan_path = Path(root, "src").resolve()
