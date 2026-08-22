@@ -4,7 +4,7 @@
 
 V3.2 เพิ่ม Remote Safe Mutation บน Guarded Workflow เดิม โดย remote target ต้องเป็น exact HTTPS origin ที่ผ่าน ownership verification, เปิด feature flag, อยู่ใน allowlist และ re-verify challenge แบบสดก่อน authentication หรือ mutation ทุกครั้ง เครื่องมือนี้ยังเป็น single-node authorized test tool ไม่ใช่ production SaaS
 
-Web UI ไม่มีหน้า login และเชื่อถือผู้ใช้ที่เข้าถึงเครื่อง local โดยตรง จึงต้องรันผ่าน Compose ที่ให้มาและคง port mapping เป็น `127.0.0.1:3000:3000` เท่านั้น Web ปฏิเสธ Host ที่ไม่ใช่ loopback และปฏิเสธ cross-origin mutation ก่อนอ่าน body เพื่อลด CSRF/DNS-rebinding risk ส่วน session ยังถูกใช้สำหรับ CSRF token; `SESSION_SECRET` จึงยังจำเป็น การรัน `npm start` ตรง ๆ bind เฉพาะ `127.0.0.1`; Compose เท่านั้นที่ตั้ง `LISTEN_HOST=0.0.0.0` ภายใน container แล้วจำกัด host-side port ที่ loopback ห้าม publish UI ไปยัง LAN, reverse proxy หรืออินเทอร์เน็ตโดยไม่มี authentication/authorization ชุดใหม่
+Web UI ไม่มีหน้า login และเชื่อถือผู้ใช้ที่เข้าถึงเครื่อง local โดยตรง จึงต้องรันผ่าน Compose ที่ให้มาและคง port mapping เป็น `127.0.0.1:3000:3000` เท่านั้น Web ปฏิเสธ Host ที่ไม่ใช่ loopback ส่วน state-changing route และ upload ยังคงบังคับ session-backed CSRF token พร้อม cookie แบบ `SameSite=Strict`; `SESSION_SECRET` จึงยังจำเป็น ตัว Web ไม่บล็อกคำขอด้วย `Origin` หรือ `Sec-Fetch-Site` แล้ว การรัน `npm start` ตรง ๆ bind เฉพาะ `127.0.0.1`; Compose เท่านั้นที่ตั้ง `LISTEN_HOST=0.0.0.0` ภายใน container แล้วจำกัด host-side port ที่ loopback ห้าม publish UI ไปยัง LAN, reverse proxy หรืออินเทอร์เน็ตโดยไม่มี authentication/authorization ชุดใหม่
 
 คู่มือใช้งานภาษาไทยแบบทีละขั้น: [docs/USER-GUIDE-TH.md](docs/USER-GUIDE-TH.md)
 

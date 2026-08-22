@@ -25,10 +25,10 @@ Verdict: `ship for authorized staging with guardrails`; remote production testin
 ## Local no-login outsider review — 8 loops
 
 1. Intent/scope: removed only the Scanner UI login and obsolete administrator configuration; kept session-backed CSRF because local browser requests still need mutation protection.
-2. Request boundary: moved multipart CSRF validation before upload writes, added same-origin checks and restricted accepted Host values to loopback names.
+2. Request boundary at that review point: moved multipart CSRF validation before upload writes, added same-origin checks and restricted accepted Host values to loopback names. The browser Origin/Fetch-Metadata gate was later removed by operator decision; loopback Host and CSRF controls remain.
 3. Persistence/upgrade: migrated state v1 to v2 without legacy `ownerScope`, preserved completed reports and made temporary state-file cleanup failure-safe.
 4. Operations/errors: direct start now defaults to `127.0.0.1`; Compose explicitly uses the container bind address, maps the host to loopback only and handles known upload/body errors with specific responses.
-5. Final trace: direct dashboard access, removed `/login`, Host/origin/CSRF rejection, valid CSRF mutation, upload cleanup, launcher migration, image tests and two-container health all pass.
+5. Final trace: direct dashboard access, removed `/login`, Host/CSRF rejection, valid CSRF mutation, upload cleanup, launcher migration, image tests and two-container health all pass. Origin rejection was historical evidence and is no longer part of the current runtime contract.
 6. Maintainability pass: split upload routes and environment migration from oversized route/launcher files; all in-scope files and functions now meet the selected standards.
 7. Drift pass: centralized launcher action metadata and dispatch to remove repeated switches and shotgun edits; added unique-name/key regressions.
 8. Clean pass: both spec and standards reviewers reported no actionable in-scope findings after a fresh Docker build and runtime smoke test.

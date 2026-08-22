@@ -6,7 +6,7 @@ import type { AppConfig } from "./config/appConfig";
 import { FORM_BODY_LIMIT_BYTES } from "./config/requestLimits";
 import { registerRoutes } from "./controllers/registerRoutes";
 import { assignRequestId, errorHandler } from "./middlewares/errorHandler";
-import { requireLoopbackHost, requireSameOriginBrowserMutation } from "./middlewares/sameOrigin";
+import { requireLoopbackHost } from "./middlewares/loopbackHost";
 import type { BoundedScanQueue } from "./queue/BoundedScanQueue";
 import type { AssetService } from "./services/AssetService";
 import type { ScanService } from "./services/ScanService";
@@ -28,7 +28,6 @@ export function createApp(dependencies: AppDependencies): express.Express {
 
   app.use(assignRequestId);
   app.use(requireLoopbackHost);
-  app.use(requireSameOriginBrowserMutation);
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {

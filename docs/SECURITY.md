@@ -36,7 +36,7 @@
 
 เมื่อ `LOCAL_MODE=true` scanner สามารถติดต่อ non-public IP ได้เฉพาะเมื่อ hostname และ port ตรง allowlist เท่านั้น นี่เป็นความสามารถที่ตั้งใจเพิ่มเพื่อทดสอบ API ในเครื่อง แต่เพิ่มอำนาจ outbound ด้วย
 
-การไม่มี login ปลอดภัยได้เฉพาะในขอบเขต local เท่านั้น Compose ต้องคง `127.0.0.1:3000:3000`; Web ตรวจ loopback Host และ same-origin mutation ก่อนอ่าน request body เพื่อลด DNS rebinding/CSRF ผู้ใช้หรือ process ในเครื่องที่เข้าถึง loopback ได้ถือว่าอยู่ใน trust boundary การ bind เป็น `0.0.0.0`, เปิดผ่าน reverse proxy หรือ expose ด้วย tunnel ต้องเพิ่ม authentication, authorization และ deployment hardening ก่อน
+การไม่มี login ปลอดภัยได้เฉพาะในขอบเขต local เท่านั้น Compose ต้องคง `127.0.0.1:3000:3000`; Web ตรวจ loopback Host และทุก mutation/upload ต้องผ่าน session-backed CSRF พร้อม `SameSite=Strict` cookie ตัว Web ไม่ตรวจ `Origin` หรือ `Sec-Fetch-Site` แล้ว ผู้ใช้หรือ process ในเครื่องที่เข้าถึง loopback ได้ถือว่าอยู่ใน trust boundary การ bind เป็น `0.0.0.0`, เปิดผ่าน reverse proxy หรือ expose ด้วย tunnel ต้องเพิ่ม authentication, authorization และ deployment hardening ก่อน
 
 ลดความเสี่ยงโดย:
 

@@ -10,7 +10,8 @@
 | Published ports | PASS, Web only on `127.0.0.1:3000`; Scanner internal `8001/tcp` only |
 | Dashboard without login | PASS, HTTP 200 |
 | Removed login route | PASS, `/login` HTTP 404 |
-| Non-loopback Host / cross-origin mutation / missing CSRF | PASS, HTTP 403 |
+| Non-loopback Host / missing CSRF | PASS, HTTP 403 |
+| Cross-origin browser headers with valid CSRF | PASS, accepted by the local-only Web UI after removal of the Origin/Fetch-Metadata gate |
 | Valid no-login CSRF mutation regression | PASS |
 | Multipart pre-write CSRF, partial-upload cleanup and oversized-file handling | PASS |
 | Persisted state v1-to-v2 migration without `ownerScope` | PASS |

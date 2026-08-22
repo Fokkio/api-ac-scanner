@@ -51,18 +51,19 @@ test("allows a local operator to mutate state with a valid CSRF token and no log
     .expect(302);
 });
 
-test("rejects cross-origin browser mutations before route processing", async () => {
+test("requires CSRF even when a mutation carries cross-origin browser headers", async () => {
   const app = createLocalTestApp();
   const response = await request(app)
     .post("/scans/source")
     .set("Origin", "https://untrusted.example")
+    .set("Sec-Fetch-Site", "cross-site")
     .attach("sources", Buffer.from("test"), "test.js")
     .expect(403);
-  assert.match(response.text, /Cross-origin browser requests are not allowed/);
+  assert.match(response.text, /Invalid or expired request token/);
 });
 
-test("accepts an exact-origin upload when browser fetch metadata reports same-site", async () => {
-  const uploadRoot = await fs.mkdtemp(path.join(os.tmpdir(), "api-ac-upload-same-site-"));
+test("accepts a valid-CSRF upload regardless of browser origin metadata", async () => {
+  const uploadRoot = await fs.mkdtemp(path.join(os.tmpdir(), "api-ac-upload-cross-origin-"));
   try {
     const app = createLocalTestApp(uploadRoot);
     const agent = request.agent(app);
@@ -74,8 +75,8 @@ test("accepts an exact-origin upload when browser fetch metadata reports same-si
     await agent
       .post("/scans/source")
       .set("Host", "127.0.0.1:3000")
-      .set("Origin", "http://127.0.0.1:3000")
-      .set("Sec-Fetch-Site", "same-site")
+      .set("Origin", "https://untrusted.example")
+      .set("Sec-Fetch-Site", "cross-site")
       .field("_csrf", csrfToken)
       .attach("sources", Buffer.from("const safe = true;"), "safe.js")
       .expect("Location", "/reports/source-scan")
@@ -84,16 +85,6 @@ test("accepts an exact-origin upload when browser fetch metadata reports same-si
   } finally {
     await fs.rm(uploadRoot, { recursive: true, force: true });
   }
-});
-
-test("rejects cross-site fetch metadata when Origin is absent", async () => {
-  const app = createLocalTestApp();
-  const response = await request(app)
-    .post("/scans/source")
-    .set("Sec-Fetch-Site", "cross-site")
-    .attach("sources", Buffer.from("test"), "test.js")
-    .expect(403);
-  assert.match(response.text, /Cross-origin browser requests are not allowed/);
 });
 
 test("rejects an upload without CSRF before creating its directory", async () => {
