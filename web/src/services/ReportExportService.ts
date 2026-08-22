@@ -136,13 +136,22 @@ function pdfText(value: string): string {
 }
 
 function safeTarget(rawTarget: string): string {
+  const redactIfSecret = (value: string): string =>
+    SECRET_KEY.test(value) ? "[redacted]" : value;
   try {
     const target = new URL(rawTarget);
     for (const key of [...target.searchParams.keys()]) {
       if (SECRET_KEY.test(key)) target.searchParams.set(key, "[redacted]");
     }
+    // Redact secret-like path segments (e.g. /token/abc123) before rendering.
+    const redactedPath = target.pathname
+      .split("/")
+      .map((segment) => redactIfSecret(segment))
+      .join("/");
+    target.pathname = redactedPath;
     return target.toString();
   } catch {
-    return rawTarget;
+    // Even a malformed target must not leak secret query/path fragments.
+    return redactIfSecret(rawTarget);
   }
 }
