@@ -26,7 +26,7 @@ class VerificationTests(unittest.IsolatedAsyncioTestCase):
     @patch("app.verification.BoundedHttpClient.create", new_callable=AsyncMock)
     async def test_verifies_exact_well_known_file(self, create_client):
         challenge = "challenge-12345678901234567890"
-        body = f"api-ac-scanner-v2.6-verification={challenge}".encode()
+        body = f"api-ac-scanner-v3.2-verification={challenge}".encode()
         create_client.return_value = FakeVerificationClient(BoundedResponse(200, {}, body, False))
         self.assertTrue(await verify_asset_control("https://example.com", challenge, "file"))
 

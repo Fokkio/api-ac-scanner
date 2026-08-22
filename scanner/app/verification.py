@@ -30,7 +30,7 @@ async def verify_asset_control_with_client(
     """Re-checks an ownership proof using an already pinned exact-origin client."""
 
     if method == "file":
-        expected = f"api-ac-scanner-v2.6-verification={challenge}"
+        expected = f"api-ac-scanner-v3.2-verification={challenge}"
         response = await client.request_path(
             "GET", "/.well-known/api-ac-scanner-verification.txt", body_limit=256,
         )
