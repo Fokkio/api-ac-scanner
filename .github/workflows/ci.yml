@@ -27,7 +27,7 @@ jobs:
         run: npm test
 
   scanner:
-    name: Scanner (Python 3.14)
+    name: Scanner (Python 3.13)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -58,15 +58,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r scanner/requirements.txt
       # Source-scan the owner's portfolio codebase to prove the static engine runs end-to-end.
+      # UPLOAD_ROOT is set so the cloned repo lands under the scanner's allowed upload root.
       - name: Source scan Fokkio/profile (cloned at runtime)
+        env:
+          UPLOAD_ROOT: /tmp/uploads
         run: |
-          git clone --depth 1 https://github.com/Fokkio/profile.git /tmp/profile
+          mkdir -p /tmp/uploads
+          git clone --depth 1 https://github.com/Fokkio/profile.git /tmp/uploads/profile
           python - <<'PY'
-          import asyncio, sys
+          import sys
           sys.path.insert(0, "scanner")
           from app.source_scan import run_source_scan
           try:
-              result = run_source_scan("/tmp/profile")
+              result = run_source_scan("/tmp/uploads/profile")
               findings = result.get("findings", [])
               print(f"SOURCE_SCAN_OK findings={len(findings)}")
           except Exception as exc:  # pragma: no cover - defensive smoke guard
