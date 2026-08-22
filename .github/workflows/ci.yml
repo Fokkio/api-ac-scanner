@@ -57,20 +57,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r scanner/requirements.txt
-      # Source-scan the owner's portfolio codebase to prove the static engine runs end-to-end.
-      # UPLOAD_ROOT is set so the cloned repo lands under the scanner's allowed upload root.
-      - name: Source scan Fokkio/profile (cloned at runtime)
+      # Source-scan the scanner's own codebase (public, same-repo) to prove the
+      # static engine runs end-to-end. Cloning the same repo the workflow runs in
+      # avoids needing cross-repo credentials.
+      - name: Source scan api-ac-scanner (public same-repo)
         env:
           UPLOAD_ROOT: /tmp/uploads
         run: |
           mkdir -p /tmp/uploads
-          git clone --depth 1 https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Fokkio/profile.git /tmp/uploads/profile
+          git clone --depth 1 https://github.com/Fokkio/api-ac-scanner.git /tmp/uploads/api-ac-scanner
           python - <<'PY'
           import sys
           sys.path.insert(0, "scanner")
           from app.source_scan import run_source_scan
           try:
-              result = run_source_scan("/tmp/uploads/profile")
+              result = run_source_scan("/tmp/uploads/api-ac-scanner")
               findings = result.get("findings", [])
               print(f"SOURCE_SCAN_OK findings={len(findings)}")
           except Exception as exc:  # pragma: no cover - defensive smoke guard
