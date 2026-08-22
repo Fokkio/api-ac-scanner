@@ -19,7 +19,7 @@ async def run_mutation_scan(
     path: str,
     body: dict[str, object],
     identity: TestIdentity,
-    target_authorization: MutationTargetAuthorization = MutationTargetAuthorization(),
+    target_authorization: MutationTargetAuthorization,
 ) -> dict[str, list[Any]]:
     """POSTs one marked test resource and DELETEs the same exact path."""
 

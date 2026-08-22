@@ -36,7 +36,7 @@ async def run_workflow_scan(
     identity: TestIdentity,
     authentication: dict[str, Any],
     steps: list[dict[str, Any]],
-    target_authorization: MutationTargetAuthorization = MutationTargetAuthorization(),
+    target_authorization: MutationTargetAuthorization,
 ) -> dict[str, list[Any]]:
     """Runs up to eight explicit guarded steps and always attempts reverse cleanup."""
 

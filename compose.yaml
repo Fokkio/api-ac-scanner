@@ -1,5 +1,5 @@
 # Retain the existing Compose project identity so upgrades replace the local stack instead of orphaning it.
-name: api-ac-scanner-v31
+name: api-ac-scanner-v32
 
 services:
   scanner:

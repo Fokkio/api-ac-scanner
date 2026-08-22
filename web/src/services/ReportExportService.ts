@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 import type { Finding, ScanRecord } from "../types/domain";
 
-const SECRET_KEY = /(authorization|cookie|password|secret|token|credential|api[-_]?key)/i;
+const SECRET_KEY = /(authorization|cookie|password|secret|token|credential|api[-_]?key|x-auth|x-session|sessionid|set-cookie|auth-token|access[-_]?token|refresh[-_]?token)/i;
 const SECRET_VALUE = /^(bearer|basic)\s+\S+/i;
 
 /** Builds a self-contained, escaped HTML report suitable for offline review. */
