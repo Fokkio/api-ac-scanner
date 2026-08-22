@@ -50,23 +50,19 @@ class SourceScanTests(unittest.TestCase):
                 with self.assertRaises(ScannerExecutionError):
                     source_scan._execute_semgrep(["semgrep"], scan_path)
 
-    def test_invokes_semgrep_with_json_output_flag(self):
+    def test_invokes_semgrep_with_json_flag_and_extracts_report(self):
         captured = {}
         def fake_run(command, **_kwargs):
             captured["command"] = list(command)
-            # Simulate semgrep writing a report to the -o file.
-            for i, token in enumerate(command):
-                if token == "-o" and i + 1 < len(command):
-                    with open(command[i + 1], "w", encoding="utf-8") as fh:
-                        fh.write('{"results": []}')
-            return SimpleNamespace(returncode=0, stdout=b"", stderr=None)
+            # Simulate semgrep writing a report to stdout.
+            return SimpleNamespace(returncode=0, stdout=b'{"version":"x","results":[]}', stderr=b"")
         with tempfile.TemporaryDirectory() as root:
             scan_path = Path(root, "src").resolve()
             scan_path.mkdir()
             with patch("app.source_scan.subprocess.run", side_effect=fake_run):
-                source_scan._execute_semgrep(["semgrep", "scan"], scan_path)
+                result = source_scan._execute_semgrep(["semgrep", "scan"], scan_path)
         self.assertIn("--json", captured["command"])
-        self.assertIn("-o", captured["command"])
+        self.assertIn('{"version"', result)
 
     def test_fails_closed_on_malformed_result_metadata(self):
         with tempfile.TemporaryDirectory() as root:
