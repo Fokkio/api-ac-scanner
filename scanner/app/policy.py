@@ -45,6 +45,26 @@ async def validate_public_target(raw_url: str) -> ValidatedTarget:
     if port not in allowed_ports:
         raise PolicyError("Target port is not allowed by the active scan policy")
     addresses = await _resolve_addresses(hostname, port, allow_non_public=is_local)
+    # Even in local mode, never pin a private/loopback address unless the operator
+    # explicitly named a loopback literal. This blocks DNS-rebinding from an allowed
+    # hostname (e.g. demo-api) to an internal address.
+    loopback_literals = frozenset({"localhost", "127.0.0.1", "::1", "host.docker.internal"})
+    if is_local and hostname.lower() not in loopback_literals:
+        for address in addresses:
+            try:
+                parsed_address = ipaddress.ip_address(address)
+            except ValueError as error:
+                raise PolicyError("Target resolved to an invalid address") from error
+            if (
+                parsed_address.is_loopback
+                or parsed_address.is_private
+                or parsed_address.is_link_local
+                or parsed_address.is_reserved
+                or parsed_address.is_multicast
+                or parsed_address.is_unspecified
+                or not parsed_address.is_global
+            ):
+                raise PolicyError("Local target resolved to a non-loopback internal address")
     canonical = urlunsplit((parsed.scheme, parsed.netloc.lower(), parsed.path or "/", parsed.query, ""))
     origin = urlunsplit((parsed.scheme, parsed.netloc.lower(), "", "", ""))
     return ValidatedTarget(canonical, origin, hostname.lower(), port, addresses, is_local)
