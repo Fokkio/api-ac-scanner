@@ -24,18 +24,22 @@ export function requireSameOriginBrowserMutation(
     next();
     return;
   }
-  const fetchSite = request.get("sec-fetch-site");
-  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
-    next(new ForbiddenError("Cross-origin browser requests are not allowed"));
-    return;
-  }
   const origin = request.get("origin");
-  if (!origin) {
+  if (origin) {
+    const host = request.get("host");
+    if (!host || !matchesRequestOrigin(origin, request.protocol, host)) {
+      next(new ForbiddenError("Cross-origin browser requests are not allowed"));
+      return;
+    }
     next();
     return;
   }
-  const host = request.get("host");
-  if (!host || !matchesRequestOrigin(origin, request.protocol, host)) {
+
+  // Origin is authoritative when browsers provide it. Fetch Metadata is a
+  // fallback for clients that omit Origin because some browsers can classify
+  // loopback form submissions as same-site even when the exact origin matches.
+  const fetchSite = request.get("sec-fetch-site");
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
     next(new ForbiddenError("Cross-origin browser requests are not allowed"));
     return;
   }

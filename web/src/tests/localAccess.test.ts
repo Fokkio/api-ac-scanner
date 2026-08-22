@@ -61,6 +61,41 @@ test("rejects cross-origin browser mutations before route processing", async () 
   assert.match(response.text, /Cross-origin browser requests are not allowed/);
 });
 
+test("accepts an exact-origin upload when browser fetch metadata reports same-site", async () => {
+  const uploadRoot = await fs.mkdtemp(path.join(os.tmpdir(), "api-ac-upload-same-site-"));
+  try {
+    const app = createLocalTestApp(uploadRoot);
+    const agent = request.agent(app);
+    const sourcePage = await agent
+      .get("/source")
+      .set("Host", "127.0.0.1:3000")
+      .expect(200);
+    const csrfToken = extractCsrfToken(sourcePage.text);
+    await agent
+      .post("/scans/source")
+      .set("Host", "127.0.0.1:3000")
+      .set("Origin", "http://127.0.0.1:3000")
+      .set("Sec-Fetch-Site", "same-site")
+      .field("_csrf", csrfToken)
+      .attach("sources", Buffer.from("const safe = true;"), "safe.js")
+      .expect("Location", "/reports/source-scan")
+      .expect(302);
+    assert.deepEqual(await fs.readdir(uploadRoot), []);
+  } finally {
+    await fs.rm(uploadRoot, { recursive: true, force: true });
+  }
+});
+
+test("rejects cross-site fetch metadata when Origin is absent", async () => {
+  const app = createLocalTestApp();
+  const response = await request(app)
+    .post("/scans/source")
+    .set("Sec-Fetch-Site", "cross-site")
+    .attach("sources", Buffer.from("test"), "test.js")
+    .expect(403);
+  assert.match(response.text, /Cross-origin browser requests are not allowed/);
+});
+
 test("rejects an upload without CSRF before creating its directory", async () => {
   const uploadRoot = await fs.mkdtemp(path.join(os.tmpdir(), "api-ac-upload-csrf-"));
   try {
@@ -117,6 +152,10 @@ test("returns 413 and removes files when an upload exceeds the file limit", asyn
 function createLocalTestApp(uploadRoot?: string) {
   const scanService = {
     getDiscoveryInventory: () => [],
+    createSourceScan: async (uploadDirectory: string) => {
+      await fs.rm(uploadDirectory, { recursive: true, force: true });
+      return { id: "source-scan" };
+    },
   } as unknown as ScanService;
   const assetService = {
     listAssets: () => [],
