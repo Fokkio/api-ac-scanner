@@ -48,22 +48,22 @@ class SourceScanTests(unittest.TestCase):
             source_scan.UPLOAD_ROOT = Path(root).resolve()
             with patch("app.source_scan.subprocess.run", return_value=SimpleNamespace(returncode=2)):
                 with self.assertRaises(ScannerExecutionError):
-                    source_scan._execute_semgrep(["semgrep"])
+                    source_scan._execute_semgrep(["semgrep"], scan_path)
 
     def test_treats_findings_exit_code_as_success(self):
         # Semgrep returns exit code 1 when it finds matches; that is a normal
         # (non-empty) result, not an analyzer failure.
         with tempfile.TemporaryDirectory() as tmp:
-            out = (Path(tmp) / "out.txt")
-            out.write_bytes(b'{"results": []}')
+            scan_path = Path(tmp, "src").resolve()
+            scan_path.mkdir()
             with patch("app.source_scan.subprocess.run", return_value=SimpleNamespace(returncode=1)):
                 # Should not raise; output is read back from the spooled file.
-                with patch("app.source_scan.tempfile.TemporaryFile") as tf:
+                with patch("app.source_scan.tempfile.NamedTemporaryFile") as tf:
                     fh = type("FH", (), {"tell": lambda self: len(b'{"results": []}'),
                                          "seek": lambda self, *a: None,
                                          "read": lambda self: b'{"results": []}'})()
                     tf.return_value.__enter__.return_value = fh
-                    result = source_scan._execute_semgrep(["semgrep"])
+                    result = source_scan._execute_semgrep(["semgrep"], scan_path)
             self.assertEqual(result, '{"results": []}')
 
     def test_fails_closed_on_malformed_result_metadata(self):

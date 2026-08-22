@@ -24,12 +24,12 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
 
     scan_path = _resolve_scan_path(repository_path)
     command = [
-        "semgrep", "scan", "--config", str(RULES_DIRECTORY), "--json",
-        "--metrics", "off", "--quiet", "--no-git-ignore", "--no-error", "--jobs", "1",
+        "semgrep", "scan", "--config", str(RULES_DIRECTORY),
+        "--metrics", "off", "--quiet", "--no-git-ignore", "--jobs", "1",
         "--max-target-bytes", "1048576", "--max-memory", "512",
-        "--timeout", "10", "--timeout-threshold", "3", str(scan_path),
+        "--timeout", "10", "--timeout-threshold", "3",
     ]
-    analyzer_output = _execute_semgrep(command)
+    analyzer_output = _execute_semgrep(command, scan_path)
     try:
         payload = json.loads(analyzer_output)
     except json.JSONDecodeError as error:
@@ -44,13 +44,20 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
     }
 
 
-def _execute_semgrep(command: list[str]) -> str:
-    """Spools analyzer output to bounded tmpfs instead of retaining it unbounded in memory."""
+def _execute_semgrep(command: list[str], scan_path: Path) -> str:
+    """Writes analyzer JSON to a bounded temp file via --json-output.
 
-    with tempfile.TemporaryFile(mode="w+b") as output_file:
+    Using --json-output (instead of capturing stdout) keeps stderr banners and
+    progress text out of the parsed result, which older Semgrep versions print
+    to stdout even with --quiet.
+    """
+
+    with tempfile.NamedTemporaryFile(mode="w+b", suffix=".json", delete=True) as output_file:
+        output_path = output_file.name
+        full_command = [*command, "--json-output", output_path, str(scan_path)]
         completed = subprocess.run(
-            command,
-            stdout=output_file,
+            full_command,
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=SCAN_TIMEOUT_SECONDS,
             check=False,
