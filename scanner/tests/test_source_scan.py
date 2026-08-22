@@ -55,8 +55,11 @@ class SourceScanTests(unittest.TestCase):
         def fake_run(command, **_kwargs):
             captured["command"] = list(command)
             return SimpleNamespace(returncode=0, stdout=b"", stderr=None)
-        with patch("app.source_scan.subprocess.run", side_effect=fake_run):
-            source_scan._execute_semgrep(["semgrep", "scan"], scan_path)
+        with tempfile.TemporaryDirectory() as root:
+            scan_path = Path(root, "src").resolve()
+            scan_path.mkdir()
+            with patch("app.source_scan.subprocess.run", side_effect=fake_run):
+                source_scan._execute_semgrep(["semgrep", "scan"], scan_path)
         self.assertIn("--json", captured["command"])
         self.assertIn("-o", captured["command"])
 
