@@ -120,7 +120,7 @@ export interface TestIdentity {
 }
 
 export interface AuthorizationPolicyRule {
-  method: "GET";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
   identity: string;
   expected: "allow" | "deny";

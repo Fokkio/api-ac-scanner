@@ -22,7 +22,10 @@ export function parseAuthorizationPolicy(rawPolicy: unknown, identities: [TestId
       throw new ValidationError("Each authorization policy rule must be an object");
     }
     const rule = value as Record<string, unknown>;
-    if (rule.method !== "GET" || typeof rule.identity !== "string" || !allowedIdentities.has(rule.identity)) {
+    if (rule.method !== "GET" && rule.method !== "POST" && rule.method !== "PUT" && rule.method !== "PATCH" && rule.method !== "DELETE") {
+      throw new ValidationError("Policy method must be a supported HTTP method");
+    }
+    if (typeof rule.identity !== "string" || !allowedIdentities.has(rule.identity)) {
       throw new ValidationError("Policy method or identity does not match this scan");
     }
     if (rule.expected !== "allow" && rule.expected !== "deny") {

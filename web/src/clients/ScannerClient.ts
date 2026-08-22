@@ -17,7 +17,7 @@ interface DeepScannerRequest {
     headers: Record<string, string>;
   }>;
   policy_rules: Array<{
-    method: "GET";
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     path: string;
     identity: string;
     expected: "allow" | "deny";

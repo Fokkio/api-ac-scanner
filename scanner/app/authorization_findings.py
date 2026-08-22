@@ -9,6 +9,7 @@ from typing import Any
 
 from app.findings import create_finding
 from app.outbound import BoundedResponse
+from app.authorization_signals import detect_body_signal, json_field_diff, classify_decision
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,8 @@ def classify_object_access(
         "ownerBodyBytes": len(owner.body),
         "alternateBodyBytes": len(alternate.body),
         "bodySimilarity": body_similarity(owner.body, alternate.body),
+        "bodiesIdentical": owner.body == alternate.body,
+        "bodyFieldDiff": json_field_diff(owner.body, alternate.body),
     }
     if not is_success(owner.status):
         spec = FindingSpec(
@@ -69,9 +72,20 @@ def _successful_or_inconclusive_object_spec(
             "Review the response contract and local application logs.",
         )
     similarity = float(evidence["bodySimilarity"])
+    identical = bool(evidence.get("bodiesIdentical", False))
+    if identical:
+        # Owner and alternate received byte-identical bodies: strongest shared-data signal.
+        return FindingSpec(
+            "deep-cross-user-object-response", "Both identities received a successful object response",
+            "The owner and alternate identities received byte-identical object bodies; this is a strong "
+            "shared-or-unauthorized-data signal (similarity is not proof of business authorization).",
+            "suspected", "high", "high",
+            "Confirm owner or tenant identifiers and the business sharing policy.",
+        )
     return FindingSpec(
         "deep-cross-user-object-response", "Both identities received a successful object response",
-        "The response may represent unauthorized, shared, public or generic data; similarity is not proof.",
+        "The response may represent unauthorized, shared, public or generic data; field-level differences "
+        "were found but similarity alone is not proof of authorization.",
         "suspected" if similarity >= 0.85 else "needs-verification",
         "medium" if similarity >= 0.85 else "low",
         "high" if similarity >= 0.85 else "medium",
@@ -139,12 +153,14 @@ def classify_anonymous_access(
         "anonymousStatus": anonymous.status,
         "anonymousBodyBytes": len(anonymous.body),
         "bodySimilarity": body_similarity(authorized.body, anonymous.body),
+        "bodyFieldDiff": json_field_diff(authorized.body, anonymous.body),
     }
+    anonymous_decision = classify_decision(anonymous.status, anonymous.body)
     if not is_success(authorized.status):
         values = ("not-tested", "high", "info", "Anonymous-access baseline unavailable")
-    elif anonymous.status in (401, 403, 404):
+    elif anonymous_decision == "deny":
         values = ("passed", "high", "info", "Anonymous access was denied")
-    elif is_success(anonymous.status):
+    elif anonymous_decision == "allow":
         values = ("suspected", "medium", "high", "Anonymous request received a successful response")
     else:
         values = ("needs-verification", "low", "medium", "Anonymous-access response was inconclusive")
@@ -244,7 +260,6 @@ def _top_level_json_keys(body: bytes) -> list[str]:
 
 def body_similarity(left: bytes, right: bytes) -> float:
     """Returns a bounded similarity ratio for two capped response bodies."""
-
     if left == right:
         return 1.0
     if not left or not right:

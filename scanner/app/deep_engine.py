@@ -137,7 +137,7 @@ def _validate_policy(plan: DeepScanPlan) -> dict[tuple[str, str], str]:
     expected_keys = {(path, label) for path in paths for label in labels}
     policy_index: dict[tuple[str, str], str] = {}
     for rule in plan.policy_rules:
-        if rule.method != "GET" or rule.expected not in {"allow", "deny"}:
+        if rule.method not in {"GET", "POST", "PUT", "PATCH", "DELETE"} or rule.expected not in {"allow", "deny"}:
             raise PolicyError("Authorization policy contains an unsupported decision")
         key = (rule.path, rule.identity)
         if key in policy_index:
@@ -228,12 +228,8 @@ def _matrix_rows(
 def _matrix_row(
     relative_path: str, identity: TestIdentity, expected: str, response: Any,
 ) -> dict[str, Any]:
-    if 200 <= response.status < 300:
-        actual = "allow"
-    elif response.status in {401, 403, 404}:
-        actual = "deny"
-    else:
-        actual = "indeterminate"
+    from app.authorization_signals import classify_decision
+    actual = classify_decision(response.status, response.body)
     return {
         "method": "GET", "path": relative_path, "identity": identity.label,
         "role": identity.role, "tenant": identity.tenant, "expected": expected,

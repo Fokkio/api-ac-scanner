@@ -108,7 +108,7 @@ async def _resolve_addresses(hostname: str, port: int, allow_non_public: bool) -
 
 
 def _read_local_policy() -> tuple[bool, frozenset[str], frozenset[int]]:
-    local_mode = os.environ.get("LOCAL_MODE", "false").strip().lower() == "true"
+    local_mode = os.environ.get("LOCAL_MODE", "true").strip().lower() == "true"
     hosts = frozenset(
         value.strip().lower()
         for value in os.environ.get("LOCAL_ALLOWED_HOSTS", DEFAULT_LOCAL_HOSTS).split(",")
