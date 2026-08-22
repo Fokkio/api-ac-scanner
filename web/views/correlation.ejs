@@ -1,28 +1,28 @@
-<%- include('partials/header', { title: 'Source + runtime correlation' }) %>
+<%- include('partials/header', { title: 'เชื่อมโยงผล Source และ Runtime' }) %>
 <main id="main-content" class="narrow-page">
   <section class="page-heading">
     <div>
-      <div class="eyebrow">CORRELATED EVIDENCE</div>
-      <h1>Join source and runtime evidence</h1>
-      <p>Select completed scans. Correlation requires the same vulnerability category and a matching normalized endpoint.</p>
+      <div class="eyebrow">เชื่อมโยงหลักฐาน</div>
+      <h1>รวมผลจากซอร์สโค้ดและการทดสอบ Runtime</h1>
+      <p>เลือกงานสแกนที่เสร็จแล้ว ระบบจะเชื่อมโยงเฉพาะผลที่เป็นหมวดช่องโหว่เดียวกันและตรงกับ Endpoint หลัง normalize</p>
     </div>
   </section>
   <section class="panel">
     <form class="stack-form" action="/scans/correlation" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label>Source scan
+      <label>ผลสแกนซอร์สโค้ด
         <select name="sourceScanId" required>
-          <option value="">Select completed source scan</option>
-          <% sourceScans.forEach(function(scan) { %><option value="<%= scan.id %>"><%= scan.createdAt %> / <%= scan.findings.length %> findings</option><% }); %>
+          <option value="">เลือกผลสแกนซอร์สโค้ดที่เสร็จแล้ว</option>
+          <% sourceScans.forEach(function(scan) { %><option value="<%= scan.id %>"><%= scan.createdAt %> / พบ <%= scan.findings.length %> รายการ</option><% }); %>
         </select>
       </label>
-      <label>Deep runtime scan
+      <label>ผลสแกน Runtime แบบละเอียด
         <select name="dynamicScanId" required>
-          <option value="">Select completed deep scan</option>
+          <option value="">เลือกผลสแกน Runtime ที่เสร็จแล้ว</option>
           <% dynamicScans.forEach(function(scan) { %><option value="<%= scan.id %>"><%= scan.createdAt %> / <%= scan.target %></option><% }); %>
         </select>
       </label>
-      <button type="submit">Correlate evidence</button>
+      <button type="submit">เชื่อมโยงหลักฐาน</button>
     </form>
   </section>
 </main>

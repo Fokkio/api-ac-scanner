@@ -8,6 +8,8 @@ Web UI ไม่มีหน้า login และเชื่อถือผู
 
 คู่มือใช้งานภาษาไทยแบบทีละขั้น: [docs/USER-GUIDE-TH.md](docs/USER-GUIDE-TH.md)
 
+Web UI ใช้ภาษาไทยเป็นหลักตั้งแต่ V3.2 โดยคงชื่อมาตรฐาน คำเทคนิค ค่า JSON และ confirmation phrase ภาษาอังกฤษไว้ในวงเล็บหรือรูปแบบเดิม เพื่อให้อ่านเข้าใจง่ายโดยไม่ทำให้ protocol การทดสอบเปลี่ยนความหมาย
+
 ## สิ่งที่ตรวจได้
 
 - Quick scan: ตรวจการตอบสนองแบบไม่ส่ง token, route ลักษณะ object/admin, `OPTIONS` และ security headers เบื้องต้น

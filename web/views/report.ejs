@@ -1,31 +1,37 @@
-<%- include('partials/header', { title: 'Scan report' }) %>
+<%- include('partials/header', { title: 'รายงานผลสแกน' }) %>
+<%
+  const kindLabels = { quick: 'สแกนด่วน', deep: 'สแกนสิทธิ์แบบละเอียด', discovery: 'ค้นหา Endpoint', source: 'สแกนซอร์สโค้ด', correlation: 'เชื่อมโยงหลักฐาน', mutation: 'ทดสอบการเปลี่ยนข้อมูล', workflow: 'เวิร์กโฟลว์' };
+  const statusLabels = { queued: 'อยู่ในคิว', running: 'กำลังทำงาน', done: 'เสร็จแล้ว', error: 'ผิดพลาด' };
+  const stateLabels = { verified: 'ยืนยันว่าขัดกับ Policy', detected: 'ตรวจพบ', suspected: 'น่าสงสัย', 'needs-verification': 'ต้องตรวจยืนยัน', passed: 'ผ่าน', 'not-tested': 'ไม่ได้ทดสอบ', error: 'ผิดพลาด' };
+  const accessLabels = { allow: 'อนุญาต', deny: 'ปฏิเสธ', unknown: 'ไม่ทราบ' };
+%>
 <main id="main-content" class="report-page" data-report-id="<%= scan.id %>" data-report-status="<%= scan.status %>">
   <header class="report-header">
     <div>
-      <span class="kind-chip"><%= scan.kind %> scan</span>
+      <span class="kind-chip"><%= kindLabels[scan.kind] || scan.kind %> (<%= scan.kind %>)</span>
       <h1><%= scan.target %></h1>
-      <p>Created <%= new Date(scan.createdAt).toLocaleString() %> / Expires <%= new Date(scan.expiresAt).toLocaleString() %></p>
+      <p>สร้างเมื่อ <%= new Date(scan.createdAt).toLocaleString('th-TH') %> / หมดอายุ <%= new Date(scan.expiresAt).toLocaleString('th-TH') %></p>
     </div>
     <div class="report-state">
-      <strong id="scan-status"><%= scan.status %></strong>
+      <strong id="scan-status"><%= statusLabels[scan.status] || scan.status %> (<%= scan.status %>)</strong>
       <span id="scan-stage"><%= scan.stage %></span>
       <% if (scan.status === 'done' || scan.status === 'error') { %>
-        <span><a href="/reports/<%= scan.id %>/export.html">Download HTML</a> · <a href="/reports/<%= scan.id %>/export.pdf">Download PDF</a></span>
+        <span><a href="/reports/<%= scan.id %>/export.html">ดาวน์โหลด HTML</a> · <a href="/reports/<%= scan.id %>/export.pdf">ดาวน์โหลด PDF</a></span>
       <% } %>
     </div>
   </header>
 
   <% if (scan.status === 'queued' || scan.status === 'running') { %>
     <section class="panel progress-panel" aria-live="polite">
-      <h2>Analysis in progress</h2>
+      <h2>กำลังวิเคราะห์</h2>
       <progress id="scan-progress" max="100" value="<%= scan.progress %>"><%= scan.progress %>%</progress>
-      <p>The report updates automatically. Credentials, if supplied, are not stored in this report.</p>
+      <p>หน้านี้อัปเดตอัตโนมัติ และจะไม่บันทึก credential ที่ให้มาไว้ในรายงาน</p>
     </section>
   <% } %>
 
   <% if (scan.status === 'error') { %>
     <section class="error-card">
-      <h2>Scan failed - no clean result was recorded</h2>
+      <h2>การสแกนไม่สำเร็จ — ระบบไม่ได้บันทึกผลว่า “ผ่าน”</h2>
       <p><%= scan.errorMessage %></p>
       <code><%= scan.errorCode %></code>
     </section>
@@ -34,21 +40,21 @@
   <% if (scan.status === 'done') { %>
     <% if (scan.matrix && scan.matrix.length > 0) { %>
       <section class="panel">
-        <div class="eyebrow">AUTHORIZATION MATRIX</div>
-        <h2>Expected vs actual access</h2>
-        <p class="muted">V3.2 uses the complete explicit authorization policy supplied for this scan.</p>
+        <div class="eyebrow">ตารางเปรียบเทียบสิทธิ์</div>
+        <h2>สิทธิ์ที่คาดหวังเทียบกับผลจริง</h2>
+        <p class="muted">V3.2 ใช้ Authorization Policy ที่คุณระบุไว้อย่างชัดเจนสำหรับงานสแกนนี้</p>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Endpoint</th><th>Identity</th><th>Role / tenant</th><th>Expected</th><th>Actual</th><th>Match</th></tr></thead>
+            <thead><tr><th>Endpoint</th><th>Identity</th><th>Role / Tenant</th><th>ผลที่คาด</th><th>ผลจริง</th><th>ตรงกับ Policy</th></tr></thead>
             <tbody>
               <% scan.matrix.forEach(function(row) { %>
                 <tr>
                   <td><code><%= row.method %> <%= row.path %></code></td>
                   <td><%= row.identity %></td>
                   <td><%= row.role || '-' %> / <%= row.tenant || '-' %></td>
-                  <td><%= row.expected %></td>
-                  <td><%= row.actual %> (<%= row.actualStatus %>)</td>
-                  <td><span class="status-chip <%= row.skippedAfterPriorFailure ? 'status-not-tested' : row.matchesExpectation ? 'status-passed' : 'status-suspected' %>"><%= row.skippedAfterPriorFailure ? 'skipped' : row.matchesExpectation ? 'match' : 'mismatch' %></span></td>
+                  <td><%= accessLabels[row.expected] || row.expected %> (<%= row.expected %>)</td>
+                  <td><%= accessLabels[row.actual] || row.actual %> (<%= row.actualStatus %>)</td>
+                  <td><span class="status-chip <%= row.skippedAfterPriorFailure ? 'status-not-tested' : row.matchesExpectation ? 'status-passed' : 'status-suspected' %>"><%= row.skippedAfterPriorFailure ? 'ข้าม' : row.matchesExpectation ? 'ตรง' : 'ไม่ตรง' %></span></td>
                 </tr>
               <% }); %>
             </tbody>
@@ -60,14 +66,14 @@
       <section class="panel">
         <div class="page-heading compact-heading">
           <div>
-            <div class="eyebrow">ENDPOINT INVENTORY</div>
-            <h2><%= scan.endpoints.length %> endpoints discovered</h2>
+            <div class="eyebrow">รายการ Endpoint</div>
+            <h2>ค้นพบ <%= scan.endpoints.length %> Endpoint</h2>
           </div>
-          <a class="button-link" href="/dashboard?inventory=<%= scan.id %>">Use candidates in deep scan</a>
+          <a class="button-link" href="/dashboard?inventory=<%= scan.id %>">นำรายการไปใช้ในสแกนแบบละเอียด</a>
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Method</th><th>Path</th><th>Candidate</th><th>Source</th><th>Confidence</th></tr></thead>
+            <thead><tr><th>Method</th><th>Path</th><th>ประเภทที่คาด</th><th>แหล่งข้อมูล</th><th>ความมั่นใจ</th></tr></thead>
             <tbody>
               <% scan.endpoints.forEach(function(endpoint) { %>
                 <tr>
@@ -87,10 +93,19 @@
       <% ['verified', 'detected', 'suspected', 'needs-verification', 'passed', 'not-tested', 'error'].forEach(function(state) { %>
         <article>
           <strong><%= scan.findings.filter(function(finding) { return finding.state === state; }).length %></strong>
-          <span><%= state.replace('-', ' ') %></span>
+          <span><%= stateLabels[state] || state.replace('-', ' ') %></span>
         </article>
       <% }); %>
     </section>
+
+    <details class="panel">
+      <summary><strong>คำอธิบายสถานะและคำศัพท์ในรายงาน</strong></summary>
+      <p><strong>Verified:</strong> ผลจริงขัดกับ Policy ที่คุณระบุ จึงมีหลักฐานให้ตรวจสอบทันที แต่ยังต้องยืนยันผลกระทบทางธุรกิจ</p>
+      <p><strong>Detected / Suspected:</strong> ตรวจพบสัญญาณหรือรูปแบบที่น่าสงสัย ยังไม่ถือเป็นช่องโหว่ที่ยืนยันแล้ว</p>
+      <p><strong>Needs verification:</strong> ต้องใช้ข้อมูลเรื่องเจ้าของ Object, บทบาท หรือ Tenant เพิ่มเติมก่อนสรุป</p>
+      <p><strong>BOLA:</strong> ผู้ใช้เข้าถึง Object ของผู้อื่นได้ · <strong>BFLA:</strong> ผู้ใช้เรียก Function ที่บทบาทตนไม่ควรใช้ได้</p>
+      <p><strong>Property authorization:</strong> ผู้ใช้เห็นหรือแก้ field ที่ไม่ควรมีสิทธิ์ · <strong>Enumeration:</strong> response เปิดเผยว่าทรัพยากรหรือบัญชีใดมีอยู่</p>
+    </details>
 
     <% scan.warnings.forEach(function(warning) { %>
       <div class="warning-card"><%= warning %></div>
@@ -98,25 +113,25 @@
 
     <section class="findings">
       <% if (scan.findings.length === 0) { %>
-        <div class="empty-card">No findings were produced. Check the scan warnings and coverage before drawing conclusions.</div>
+        <div class="empty-card">ไม่พบรายการผิดปกติ แต่ต้องตรวจคำเตือนและขอบเขตที่สแกนก่อนสรุปว่าระบบปลอดภัย</div>
       <% } %>
       <% scan.findings.forEach(function(finding) { %>
         <details class="finding-card" <%= finding.state === 'detected' || finding.state === 'suspected' ? 'open' : '' %>>
           <summary>
-            <span class="status-chip status-<%= finding.state %>"><%= finding.state.replace('-', ' ') %></span>
+            <span class="status-chip status-<%= finding.state %>"><%= stateLabels[finding.state] || finding.state.replace('-', ' ') %></span>
             <span><%= finding.title %></span>
-            <small><%= finding.owaspId %> / <%= finding.confidence %> confidence</small>
+            <small><%= finding.owaspId %> / ความมั่นใจ <%= finding.confidence %></small>
           </summary>
           <div class="finding-body">
             <p><%= finding.description %></p>
             <% if (finding.location) { %><code><%= finding.location %></code><% } %>
-            <h3>Evidence</h3>
+            <h3>หลักฐาน (Evidence)</h3>
             <dl>
               <% Object.entries(finding.evidence).forEach(function(entry) { %>
                 <dt><%= entry[0] %></dt><dd><%= entry[1] %></dd>
               <% }); %>
             </dl>
-            <h3>Recommended verification</h3>
+            <h3>วิธีตรวจยืนยันที่แนะนำ</h3>
             <p><%= finding.recommendation %></p>
           </div>
         </details>

@@ -1,29 +1,29 @@
-<%- include('partials/header', { title: 'API discovery' }) %>
+<%- include('partials/header', { title: 'ค้นหา Endpoint ของ API' }) %>
 <main id="main-content" class="narrow-page">
   <section class="page-heading">
     <div>
-      <div class="eyebrow">EVIDENCE-BASED DISCOVERY</div>
-      <h1>Build an endpoint inventory</h1>
-      <p>Import OpenAPI/Swagger, HAR, Postman collections or supported source files. V3.2 does not brute-force or crawl unknown routes.</p>
+      <div class="eyebrow">ค้นหาจากหลักฐานที่ให้มา</div>
+      <h1>สร้างรายการ Endpoint ของ API</h1>
+      <p>นำเข้า OpenAPI/Swagger, HAR, Postman Collection หรือซอร์สไฟล์ที่รองรับ โดย V3.2 จะไม่ brute-force หรือ crawl route ที่ไม่รู้จัก</p>
     </div>
   </section>
   <section class="panel">
     <form class="stack-form" action="/scans/discovery" method="post" enctype="multipart/form-data">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label>Verified asset
+      <label>API ที่ยืนยันแล้ว
         <select name="assetId" required>
-          <option value="">Select an asset</option>
+          <option value="">เลือก API</option>
           <% assets.forEach(function(asset) { %>
             <option value="<%= asset.id %>"><%= asset.origin %></option>
           <% }); %>
         </select>
       </label>
-      <label>Discovery artifacts
+      <label>ไฟล์หลักฐานสำหรับค้นหา Endpoint
         <input name="artifacts" type="file" required multiple
           accept=".json,.yaml,.yml,.har,.js,.jsx,.ts,.tsx,.py,.php,.java" />
-        <small>Maximum 25 files and 1 MiB per file. Uploaded files are deleted after the job.</small>
+        <small>สูงสุด 25 ไฟล์ ไฟล์ละไม่เกิน 1 MiB และระบบจะลบไฟล์หลังงานเสร็จ</small>
       </label>
-      <button type="submit">Discover endpoints</button>
+      <button type="submit">ค้นหา Endpoint</button>
     </form>
   </section>
 </main>

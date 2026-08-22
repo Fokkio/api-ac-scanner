@@ -1,40 +1,40 @@
-<%- include('partials/header', { title: 'Authorization workspace' }) %>
+<%- include('partials/header', { title: 'พื้นที่ตรวจสอบสิทธิ์' }) %>
 <main id="main-content" class="workspace">
   <header class="page-heading">
     <div>
-      <div class="eyebrow">LOCAL AUTHORIZATION LAB</div>
-      <h1>Authorization workspace</h1>
-      <p><%= localMode ? 'Local mode is enabled. Allowlisted local hosts are trusted automatically.' : 'Public assets require exact-origin verification.' %></p>
+      <div class="eyebrow">แล็บตรวจสอบสิทธิ์บนเครื่อง</div>
+      <h1>พื้นที่ตรวจสอบการควบคุมสิทธิ์</h1>
+      <p><%= localMode ? 'เปิดโหมด Local แล้ว ระบบจะเชื่อถือเฉพาะ host บนเครื่องที่อยู่ใน allowlist โดยอัตโนมัติ' : 'เป้าหมายภายนอกต้องยืนยันความเป็นเจ้าของแบบ exact origin' %></p>
     </div>
   </header>
 
   <section class="panel">
-    <h2>1. Add your local or staging API</h2>
+    <h2>1. เพิ่ม API บนเครื่องหรือระบบ Staging</h2>
     <form class="inline-form" action="/assets" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label class="sr-only" for="origin">Exact origin</label>
+      <label class="sr-only" for="origin">Origin แบบตรงตัว</label>
       <input id="origin" name="origin" type="url" required placeholder="http://host.docker.internal:4100" />
-      <button type="submit">Add asset</button>
+      <button type="submit">เพิ่ม API</button>
     </form>
   </section>
 
-  <section class="asset-list" aria-label="Configured assets">
+  <section class="asset-list" aria-label="API ที่ตั้งค่าไว้">
     <% if (assets.length === 0) { %>
-      <div class="empty-card">No assets yet. Add an allowlisted local origin or an exact HTTPS origin you control.</div>
+      <div class="empty-card">ยังไม่มี API กรุณาเพิ่ม local origin ที่อยู่ใน allowlist หรือ HTTPS origin แบบตรงตัวที่คุณควบคุม</div>
     <% } %>
     <% assets.forEach(function(asset) { %>
       <article class="asset-card">
         <div>
           <span class="status-chip <%= asset.isVerified ? 'status-passed' : 'status-needs-verification' %>">
-            <%= asset.isVerified ? 'Verified' : 'Pending verification' %>
+            <%= asset.isVerified ? 'ยืนยันแล้ว (Verified)' : 'รอการยืนยัน' %>
           </span>
           <h3><%= asset.origin %></h3>
           <% const isLocalAsset = localAssetIds.includes(asset.id); %>
           <% if (asset.verificationMethod || isLocalAsset) { %>
-            <p class="muted">Verification method: <code><%= isLocalAsset ? 'local-allowlist' : asset.verificationMethod %></code></p>
+            <p class="muted">วิธียืนยัน: <code><%= isLocalAsset ? 'local-allowlist' : asset.verificationMethod %></code></p>
           <% } %>
           <% if (!isLocalAsset) { %>
-            <p><%= asset.isVerified ? 'Keep one exact-origin proof live for remote state-changing scans:' : 'Choose one exact-origin verification method:' %></p>
+            <p><%= asset.isVerified ? 'ต้องคงหลักฐาน exact-origin อย่างน้อยหนึ่งแบบไว้ระหว่างการทดสอบที่เปลี่ยนข้อมูล:' : 'เลือกวิธียืนยัน exact-origin หนึ่งแบบ:' %></p>
             <code><%= asset.origin %>/.well-known/api-ac-scanner-verification.txt</code>
             <code>api-ac-scanner-v2.6-verification=<%= asset.challenge %></code>
             <code>Header: X-API-AC-Scanner-Verification: <%= asset.challenge %></code>
@@ -44,12 +44,12 @@
         <% if (!isLocalAsset) { %>
           <form action="/assets/<%= asset.id %>/verify" method="post">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-            <select name="verificationMethod" aria-label="Verification method">
-              <option value="file">Well-known file</option>
-              <option value="header">HTTP header</option>
+            <select name="verificationMethod" aria-label="วิธียืนยันความเป็นเจ้าของ">
+              <option value="file">ไฟล์ Well-known</option>
+              <option value="header">HTTP Header</option>
               <option value="dns">DNS TXT</option>
             </select>
-            <button class="secondary-button" type="submit"><%= asset.isVerified ? 'Re-verify now' : 'Verify now' %></button>
+            <button class="secondary-button" type="submit"><%= asset.isVerified ? 'ยืนยันอีกครั้ง' : 'ยืนยันตอนนี้' %></button>
           </form>
         <% } %>
       </article>
@@ -57,57 +57,57 @@
   </section>
 
   <section class="panel">
-    <h2>2. Build the authorization matrix</h2>
-    <p class="muted">Tokens are held only in the in-memory job and are never written to reports or disk.</p>
+    <h2>2. สร้างตารางเปรียบเทียบสิทธิ์ (Authorization Matrix)</h2>
+    <p class="muted">Token จะอยู่เฉพาะในหน่วยความจำของงานที่กำลังรัน และไม่ถูกบันทึกลงรายงานหรือดิสก์</p>
     <% if (inventory && inventory.length > 0) { %>
       <div class="warning-card">
-        Loaded <%= inventory.length %> discovered endpoints. Only concrete GET candidates were prefilled;
-        replace placeholders such as <code>{id}</code> or <code>:id</code> with dedicated test objects.
+        โหลด Endpoint ที่ค้นพบแล้ว <%= inventory.length %> รายการ ระบบเติมให้เฉพาะ GET path ที่เป็นค่าจริง
+        กรุณาแทน placeholder เช่น <code>{id}</code> หรือ <code>:id</code> ด้วย object สำหรับทดสอบโดยเฉพาะ
       </div>
     <% } %>
     <form class="stack-form" action="/scans/deep" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label>Verified asset
+      <label>API ที่ยืนยันแล้ว
         <select name="assetId" required>
-          <option value="">Select an asset</option>
+          <option value="">เลือก API</option>
           <% assets.filter(function(asset) { return asset.isVerified; }).forEach(function(asset) { %>
             <option value="<%= asset.id %>"><%= asset.origin %></option>
           <% }); %>
         </select>
       </label>
       <div class="two-column">
-        <label>Object paths
+        <label>Path ของ Object
           <textarea name="objectPaths" required rows="5" placeholder="/api/orders/123&#10;/api/documents/abc"><%= suggestedObjectPaths.join('\n') %></textarea>
-          <small>Known owner/tenant objects, relative paths only, maximum 5.</small>
+          <small>Object ของ owner/tenant ที่รู้จัก ใช้เฉพาะ relative path สูงสุด 5 รายการ</small>
         </label>
-        <label>Admin/function paths
+        <label>Path ของ Admin/Function
           <textarea name="adminPaths" required rows="5" placeholder="/api/admin/users&#10;/api/admin/reports"><%= suggestedFunctionPaths.join('\n') %></textarea>
-          <small>Functions expected to require the first token, maximum 5.</small>
+          <small>Function ที่คาดว่าต้องใช้ token ของโปรไฟล์แรก สูงสุด 5 รายการ</small>
         </label>
       </div>
-      <label>Explicit authorization policy (JSON)
+      <label>Policy การอนุญาตที่กำหนดชัดเจน (JSON)
         <textarea name="authorizationPolicy" required rows="12" maxlength="20000"
           placeholder='[{"method":"GET","path":"/api/orders/1","identity":"Alice","expected":"allow"},{"method":"GET","path":"/api/orders/1","identity":"Bob","expected":"deny"},{"method":"GET","path":"/api/orders/1","identity":"Anonymous","expected":"deny"}]'></textarea>
-        <small>Provide one rule for every profile and Anonymous on every object/function path. Labels must exactly match the profile labels.</small>
+        <small>ต้องมี rule ของทุกโปรไฟล์และ Anonymous สำหรับทุก object/function path โดยชื่อ identity ต้องตรงกับชื่อโปรไฟล์ทุกตัวอักษร</small>
       </label>
       <div class="two-column">
-        <label>Known-existing paths for enumeration (optional)
+        <label>Path ที่ทราบว่ามีอยู่ สำหรับทดสอบ Enumeration (ไม่บังคับ)
           <textarea name="enumerationExistingPaths" rows="4" placeholder="/api/users/alice"></textarea>
-          <small>Pair each line with the missing-resource list, maximum 5.</small>
+          <small>แต่ละบรรทัดต้องจับคู่กับรายการ Path ที่ไม่มีอยู่ สูงสุด 5 คู่</small>
         </label>
-        <label>Known-missing paths for enumeration (optional)
+        <label>Path ที่ทราบว่าไม่มีอยู่ สำหรับทดสอบ Enumeration (ไม่บังคับ)
           <textarea name="enumerationMissingPaths" rows="4" placeholder="/api/users/definitely-missing"></textarea>
-          <small>Order must match the existing-resource list.</small>
+          <small>ลำดับต้องตรงกับรายการ Path ที่มีอยู่</small>
         </label>
       </div>
       <div class="two-column">
         <% ['primary', 'alternate'].forEach(function(prefix, index) { %>
           <fieldset class="identity-card">
-            <legend><%= index === 0 ? 'Baseline / owner profile' : 'Alternate / lower-role profile' %></legend>
-            <label>Profile label<input name="<%= prefix %>Label" required maxlength="64" placeholder="<%= index === 0 ? 'Alice owner' : 'Bob alternate' %>" /></label>
-            <label>Expected role<input name="<%= prefix %>Role" maxlength="64" placeholder="user or admin" /></label>
-            <label>Tenant / scope<input name="<%= prefix %>Tenant" maxlength="64" placeholder="tenant-a" /></label>
-            <label>Authentication type
+            <legend><%= index === 0 ? 'โปรไฟล์หลัก / เจ้าของข้อมูล' : 'โปรไฟล์เปรียบเทียบ / สิทธิ์ต่ำกว่า' %></legend>
+            <label>ชื่อโปรไฟล์<input name="<%= prefix %>Label" required maxlength="64" placeholder="<%= index === 0 ? 'Alice owner' : 'Bob alternate' %>" /></label>
+            <label>บทบาทที่คาดหวัง<input name="<%= prefix %>Role" maxlength="64" placeholder="user หรือ admin" /></label>
+            <label>Tenant / ขอบเขต<input name="<%= prefix %>Tenant" maxlength="64" placeholder="tenant-a" /></label>
+            <label>ประเภท Authentication
               <select name="<%= prefix %>AuthType" required>
                 <option value="bearer">Bearer token</option>
                 <option value="basic">HTTP Basic</option>
@@ -116,17 +116,17 @@
                 <option value="custom-headers">Custom headers JSON</option>
               </select>
             </label>
-            <label>API-key header name (API key only)
+            <label>ชื่อ Header ของ API key (ใช้เฉพาะ API key)
               <input name="<%= prefix %>HeaderName" maxlength="128" placeholder="x-api-key" />
             </label>
-            <label>Credential / custom headers JSON
+            <label>Credential / Custom Header แบบ JSON
               <textarea name="<%= prefix %>Credential" required maxlength="8192" rows="3" autocomplete="off"
                 placeholder='<%= index === 0 ? "owner-local-token-1234567890" : "alternate-local-token-1234567890" %>'></textarea>
             </label>
           </fieldset>
         <% }); %>
       </div>
-      <button type="submit">Run authorized scan</button>
+      <button type="submit">เริ่มสแกนเปรียบเทียบสิทธิ์</button>
     </form>
   </section>
 </main>

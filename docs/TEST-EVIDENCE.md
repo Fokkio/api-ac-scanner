@@ -18,6 +18,20 @@
 
 The local no-login build trusts software and users that can already reach the host loopback interface. This evidence does not authorize LAN or public exposure.
 
+## Thai-first Web UI verification — 2026-08-22
+
+| Check | Result |
+|---|---:|
+| EJS syntax compilation | PASS, 11/11 templates |
+| TypeScript typecheck + unit/integration tests + build | PASS, 55/55 |
+| Same checks inside final Web image build | PASS, 55/55 |
+| Thai runtime pages | PASS, 7/7 routes returned HTTP 200 with `lang="th"` and expected Thai heading |
+| Mobile viewport | PASS, Playwright viewport 390×844; document/body `scrollWidth=390`, no horizontal overflow |
+| Desktop visual capture | [home-desktop.png](../test-artifacts/thai-ui-2026-08-22/home-desktop.png) |
+| Mobile visual capture | [home-mobile-playwright.png](../test-artifacts/thai-ui-2026-08-22/home-mobile-playwright.png) |
+
+UI ใช้ภาษาไทยเป็นหลัก แต่คงชื่อมาตรฐาน คำเทคนิค JSON fields และ confirmation phrases ภาษาอังกฤษไว้เพื่อรักษาความหมายและ API contract เดิม รายละเอียด finding ที่สร้างจาก rule engine อาจยังเป็นภาษาอังกฤษ โดยหน้ารายงานเพิ่มคำอธิบายสถานะและคำศัพท์ BOLA/BFLA/Property Authorization/Enumeration ภาษาไทยแล้ว
+
 วันที่ตรวจ: 2026-08-20
 
 | Check | Result |

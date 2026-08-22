@@ -1,11 +1,12 @@
-<%- include('partials/header', { title: 'Request failed' }) %>
+<%- include('partials/header', { title: 'คำขอไม่สำเร็จ' }) %>
 <main id="main-content" class="narrow-page">
   <section class="error-card">
-    <div class="eyebrow">REQUEST FAILED</div>
+    <div class="eyebrow">คำขอไม่สำเร็จ</div>
+    <p>ระบบไม่สามารถดำเนินการตามคำขอนี้ได้ รายละเอียดทางเทคนิคแสดงด้านล่าง</p>
     <h1><%= message %></h1>
-    <p>Error code: <code><%= code %></code></p>
-    <p>Request ID: <code><%= requestId %></code></p>
-    <a class="button-link" href="/">Return home</a>
+    <p>รหัสข้อผิดพลาด (Error code): <code><%= code %></code></p>
+    <p>รหัสคำขอ (Request ID): <code><%= requestId %></code></p>
+    <a class="button-link" href="/">กลับหน้าหลัก</a>
   </section>
 </main>
 <%- include('partials/footer') %>

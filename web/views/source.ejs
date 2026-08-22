@@ -1,18 +1,18 @@
-<%- include('partials/header', { title: 'Source scan' }) %>
+<%- include('partials/header', { title: 'สแกนซอร์สโค้ด' }) %>
 <main id="main-content" class="narrow-page">
   <section class="panel">
-    <div class="eyebrow">LOCAL STATIC SCAN</div>
-    <h1>Scan source files</h1>
-    <p>Upload up to 25 supported files. Each file is capped at 1 MiB and the temporary copy is removed after scanning.</p>
+    <div class="eyebrow">สแกนซอร์สโค้ดบนเครื่อง</div>
+    <h1>ตรวจไฟล์ซอร์สโค้ด (Source Scan)</h1>
+    <p>อัปโหลดไฟล์ที่รองรับได้สูงสุด 25 ไฟล์ ไฟล์ละไม่เกิน 1 MiB และระบบจะลบสำเนาชั่วคราวหลังสแกนเสร็จ</p>
     <form class="stack-form" action="/scans/source" method="post" enctype="multipart/form-data">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label>Source files or directory
+      <label>ไฟล์หรือโฟลเดอร์ซอร์สโค้ด
         <input name="sources" type="file" multiple required webkitdirectory directory
           accept=".js,.jsx,.ts,.tsx,.py,.php,.java" />
       </label>
-      <button type="submit">Run source scan</button>
+      <button type="submit">เริ่มสแกนซอร์สโค้ด</button>
     </form>
-    <p class="muted">V3.2 reports guidance only. Automated code modification is intentionally disabled.</p>
+    <p class="muted">V3.2 แสดงคำแนะนำเพื่อให้ตรวจสอบต่อเท่านั้น และจะไม่แก้ไขซอร์สโค้ดให้อัตโนมัติ</p>
   </section>
 </main>
 <%- include('partials/footer') %>

@@ -21,6 +21,7 @@ test("standalone HTML escapes content and redacts secret evidence", () => {
   assert.doesNotMatch(html, /must-not-leak/);
   assert.doesNotMatch(html, /url-secret/);
   assert.match(html, /\[redacted\]/);
+  assert.match(html, /<html lang="th">/);
 });
 
 test("PDF export returns a non-empty PDF and excludes secret evidence", async () => {
@@ -30,7 +31,7 @@ test("PDF export returns a non-empty PDF and excludes secret evidence", async ()
   assert.doesNotMatch(pdf.toString("latin1"), /must-not-leak/);
 });
 
-test("standalone HTML labels unexecuted workflow rows as skipped", () => {
+test("standalone Thai HTML labels unexecuted workflow rows as skipped", () => {
   const skippedScan: ScanRecord = {
     ...scan,
     matrix: [{
@@ -39,5 +40,5 @@ test("standalone HTML labels unexecuted workflow rows as skipped", () => {
       matchesExpectation: false, skippedAfterPriorFailure: true,
     }],
   };
-  assert.match(buildStandaloneHtmlReport(skippedScan), />skipped<\/td>/);
+  assert.match(buildStandaloneHtmlReport(skippedScan), />ข้าม \(skipped\)<\/td>/);
 });

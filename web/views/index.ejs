@@ -1,45 +1,45 @@
-<%- include('partials/header', { title: 'Quick scan' }) %>
+<%- include('partials/header', { title: 'สแกนด่วน' }) %>
 <main id="main-content">
   <section class="hero">
     <div class="hero-shell">
       <div class="hero-content">
-        <div class="eyebrow">Local-first authorization scan</div>
-        <h1>Check your local API.<br /><span>Trace access-control gaps.</span></h1>
-        <p class="hero-copy">Check an authorized API with bounded requests, then move to identity-based verification when surface evidence needs context.</p>
+        <div class="eyebrow">สแกนสิทธิ์แบบ LOCAL-FIRST</div>
+        <h1>ตรวจสอบ API บนเครื่องคุณ<br /><span>ค้นหาช่องว่างของการควบคุมสิทธิ์</span></h1>
+        <p class="hero-copy">ตรวจเฉพาะ API ที่คุณเป็นเจ้าของหรือได้รับอนุญาต ด้วยคำขอที่จำกัดขอบเขต แล้วค่อยเปรียบเทียบสิทธิ์ของผู้ใช้แต่ละตัวตนเมื่อจำเป็น</p>
       </div>
 
       <form class="url-form quick-scan-panel" action="/scans/quick" method="post">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
         <div class="form-intro">
-          <h2>Scan a target</h2>
-          <p>GET, HEAD and OPTIONS only. No credentials or mutations.</p>
+          <h2>ระบุเป้าหมายที่ต้องการสแกน</h2>
+          <p>ใช้เฉพาะ GET, HEAD และ OPTIONS โดยไม่ส่ง credential และไม่เปลี่ยนข้อมูล</p>
         </div>
-        <label class="field-label" for="target">Target URL</label>
+        <label class="field-label" for="target">URL เป้าหมาย</label>
         <div class="url-control">
           <input id="target" name="target" type="url" inputmode="url" required
             maxlength="2048" placeholder="http://host.docker.internal:4100" autocomplete="url" />
-          <button type="submit">Run quick scan</button>
+          <button type="submit">เริ่มสแกนด่วน</button>
         </div>
         <label class="consent">
           <input type="checkbox" name="authorized" value="yes" required />
-          <span>I own this target or have explicit authorization to test it.</span>
+          <span>ฉันเป็นเจ้าของเป้าหมายนี้ หรือได้รับอนุญาตอย่างชัดเจนให้ทดสอบ</span>
         </label>
       </form>
     </div>
   </section>
 
-  <section class="feature-grid" aria-label="Quick scan coverage">
+  <section class="feature-grid" aria-label="ขอบเขตของการสแกนด่วน">
     <article>
-      <h2>Bounded by default</h2>
-      <p>Strict host and port allowlists, short timeouts, blocked redirects and capped response bodies keep the first pass controlled.</p>
+      <h2>จำกัดขอบเขตตั้งแต่ต้น</h2>
+      <p>ตรวจเฉพาะ host และ port ที่อนุญาต พร้อมจำกัดเวลา ปิด redirect และจำกัดขนาด response เพื่อควบคุมการสแกนรอบแรก</p>
     </article>
     <article>
-      <h2>Honest confidence</h2>
-      <p>Heuristics remain suspected until ownership, role and policy evidence can support a stronger conclusion.</p>
+      <h2>รายงานตามระดับความมั่นใจจริง</h2>
+      <p>ผลจาก heuristic จะยังเป็นเพียงข้อสงสัย จนกว่าจะมีหลักฐานด้านเจ้าของข้อมูล บทบาท และ policy รองรับ</p>
     </article>
     <article>
-      <h2>Identity-aware follow-up</h2>
-      <p>Compare owner, alternate and anonymous behavior without persisting supplied credentials in reports.</p>
+      <h2>ตรวจเปรียบเทียบตามตัวตน</h2>
+      <p>เปรียบเทียบ owner, ผู้ใช้สิทธิ์อื่น และ anonymous โดยไม่บันทึก credential ที่ให้มาไว้ในรายงาน</p>
     </article>
   </section>
 </main>

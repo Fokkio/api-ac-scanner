@@ -1,30 +1,30 @@
-<%- include('partials/header', { title: 'Safe local mutation' }) %>
+<%- include('partials/header', { title: 'ทดสอบการเปลี่ยนข้อมูลอย่างปลอดภัย' }) %>
 <main id="main-content" class="narrow-page">
   <section class="page-heading">
     <div>
-      <div class="eyebrow">CREATE + CLEANUP</div>
-      <h1>Safe local mutation test</h1>
-      <p>V3.2 POSTs a marked resource under <code>/__ac_test__/</code>, then DELETEs the same path immediately.</p>
+      <div class="eyebrow">สร้างข้อมูล + ล้างข้อมูล</div>
+      <h1>ทดสอบการเปลี่ยนข้อมูลแบบควบคุม</h1>
+      <p>V3.2 จะ POST ข้อมูลทดสอบที่มีเครื่องหมายกำกับใต้ <code>/__ac_test__/</code> แล้ว DELETE path เดิมทันที</p>
     </div>
   </section>
-  <section class="warning-card">Use a disposable local fixture or an explicitly enabled exact HTTPS origin with live ownership proof. A failed cleanup still requires manual investigation.</section>
+  <section class="warning-card">ใช้เฉพาะ fixture ที่ทิ้งได้บนเครื่อง หรือ HTTPS origin แบบตรงตัวที่เปิดอนุญาตและมีหลักฐานความเป็นเจ้าของอยู่จริง หาก cleanup ไม่สำเร็จต้องตรวจและลบข้อมูลด้วยตนเอง</section>
   <section class="panel">
     <form class="stack-form" action="/scans/mutation" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label>Eligible test asset<select name="assetId" required><option value="">Select an asset</option><% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %> — <%= ['file','header','dns'].includes(asset.verificationMethod) ? 'verified remote' : 'local' %></option><% }); %></select></label>
-      <label>Dedicated test path<input name="mutationPath" required value="/__ac_test__/v3-safe-resource" maxlength="512" /></label>
-      <label>JSON body<textarea name="mutationBody" required maxlength="4096" rows="5">{"apiAcScannerTest":true,"value":"temporary"}</textarea></label>
+      <label>API ที่อนุญาตให้ทดสอบ<select name="assetId" required><option value="">เลือก API</option><% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %> — <%= ['file','header','dns'].includes(asset.verificationMethod) ? 'remote ที่ยืนยันแล้ว' : 'local' %></option><% }); %></select></label>
+      <label>Path สำหรับข้อมูลทดสอบโดยเฉพาะ<input name="mutationPath" required value="/__ac_test__/v3-safe-resource" maxlength="512" /></label>
+      <label>Body แบบ JSON<textarea name="mutationBody" required maxlength="4096" rows="5">{"apiAcScannerTest":true,"value":"temporary"}</textarea></label>
       <div class="two-column">
-        <label>Identity label<input name="identityLabel" required value="Mutation tester" maxlength="64" /></label>
-        <label>Role<input name="identityRole" value="tester" maxlength="64" /></label>
+        <label>ชื่อ Identity<input name="identityLabel" required value="Mutation tester" maxlength="64" /></label>
+        <label>บทบาท (Role)<input name="identityRole" value="tester" maxlength="64" /></label>
         <label>Tenant<input name="identityTenant" value="local" maxlength="64" /></label>
-        <label>Authentication type<select name="identityAuthType"><option value="bearer">Bearer</option><option value="basic">HTTP Basic</option><option value="cookie">Cookie</option><option value="api-key">API key</option><option value="custom-headers">Custom headers JSON</option></select></label>
-        <label>API-key header<input name="identityHeaderName" placeholder="x-api-key" /></label>
+        <label>ประเภท Authentication<select name="identityAuthType"><option value="bearer">Bearer</option><option value="basic">HTTP Basic</option><option value="cookie">Cookie</option><option value="api-key">API key</option><option value="custom-headers">Custom headers JSON</option></select></label>
+        <label>Header ของ API key<input name="identityHeaderName" placeholder="x-api-key" /></label>
         <label>Credential<textarea name="identityCredential" required maxlength="8192" autocomplete="off"></textarea></label>
       </div>
-      <label>Confirmation<input name="confirmation" required placeholder="Type the exact phrase for the selected target" autocomplete="off" /></label>
-      <p class="muted">Local: <code>MUTATE TEST RESOURCE</code><br />Verified remote: <code>MUTATE VERIFIED REMOTE TEST RESOURCE</code></p>
-      <button type="submit">Create test resource and clean it up</button>
+      <label>ข้อความยืนยัน<input name="confirmation" required placeholder="พิมพ์ข้อความให้ตรงทุกตัวอักษรตามประเภทเป้าหมาย" autocomplete="off" /></label>
+      <p class="muted">Local ให้พิมพ์: <code>MUTATE TEST RESOURCE</code><br />Remote ที่ยืนยันแล้วให้พิมพ์: <code>MUTATE VERIFIED REMOTE TEST RESOURCE</code></p>
+      <button type="submit">สร้างข้อมูลทดสอบแล้วล้างออก</button>
     </form>
   </section>
 </main>

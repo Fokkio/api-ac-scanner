@@ -10,7 +10,7 @@
 
     const setNavigationOpen = function (open) {
       navToggle.setAttribute("aria-expanded", String(open));
-      navToggle.textContent = open ? "Close" : "Menu";
+      navToggle.textContent = open ? "ปิดเมนู" : "เมนู";
       primaryNav.setAttribute("data-open", String(open));
     };
 
@@ -49,7 +49,7 @@
       const submitButton = form.querySelector('button[type="submit"]');
       if (!submitButton) return;
       submitButton.dataset.originalLabel = submitButton.textContent || "";
-      submitButton.textContent = submitButton.dataset.loadingLabel || "Working...";
+      submitButton.textContent = submitButton.dataset.loadingLabel || "กำลังดำเนินการ...";
       submitButton.setAttribute("aria-busy", "true");
       submitButton.disabled = true;
     });
@@ -57,7 +57,7 @@
 
   window.addEventListener("pageshow", function () {
     document.querySelectorAll('button[type="submit"][aria-busy="true"]').forEach(function (button) {
-      button.textContent = button.dataset.originalLabel || "Submit";
+      button.textContent = button.dataset.originalLabel || "ส่งข้อมูล";
       button.removeAttribute("aria-busy");
       button.disabled = false;
     });
@@ -73,6 +73,7 @@
   const statusElement = document.querySelector("#scan-status");
   const stageElement = document.querySelector("#scan-stage");
   const progressElement = document.querySelector("#scan-progress");
+  const statusLabels = { queued: "อยู่ในคิว", running: "กำลังทำงาน", done: "เสร็จแล้ว", error: "ผิดพลาด" };
   let pollHandle;
 
   async function pollReport() {
@@ -84,7 +85,7 @@
 
       const payload = await response.json();
       const scan = payload.scan;
-      if (statusElement) statusElement.textContent = scan.status;
+      if (statusElement) statusElement.textContent = `${statusLabels[scan.status] || scan.status} (${scan.status})`;
       if (stageElement) stageElement.textContent = scan.stage;
       if (progressElement) progressElement.value = scan.progress;
 
@@ -93,7 +94,7 @@
         window.location.reload();
       }
     } catch (_error) {
-      if (stageElement) stageElement.textContent = "Waiting for the service to reconnect";
+      if (stageElement) stageElement.textContent = "กำลังรอเชื่อมต่อบริการอีกครั้ง";
     }
   }
 
