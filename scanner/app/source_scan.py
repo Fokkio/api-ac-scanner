@@ -46,32 +46,32 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
 
 
 def _execute_semgrep(command: list[str], scan_path: Path) -> str:
-    """Runs Semgrep and returns the JSON report as a string.
+    """Runs Semgrep with --json and returns the report string.
 
-    Different Semgrep versions disagree on where the JSON lands: some write
-    the --json report to the -o file, others print it (mixed with banners and
-    matched code) to stdout. Capture both; prefer the -o file, and if it is
-    empty fall back to extracting the JSON document from stdout.
+    Semgrep prints banners, matched source snippets and progress to stdout even
+    with --json, so the first '{' may belong to scanned code. Capture stdout and
+    extract the first JSON object with json.JSONDecoder.raw_decode, which tolerates
+    leading/trailing non-JSON text.
     """
 
-    with tempfile.NamedTemporaryFile(mode="w+b", suffix=".json", delete=True) as output_file:
-        output_path = output_file.name
-        full_command = [*command, "--json", "-o", output_path, str(scan_path)]
-        completed = subprocess.run(
-            full_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            timeout=SCAN_TIMEOUT_SECONDS,
-            check=False,
+    full_command = [*command, "--json", str(scan_path)]
+    completed = subprocess.run(
+        full_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=SCAN_TIMEOUT_SECONDS,
+        check=False,
+    )
+    if completed.returncode == 2:
+        raise ScannerExecutionError("Static analyzer failed before producing a complete result")
+    stdout_text = completed.stdout.decode("utf-8", errors="strict")
+    try:
+        return _extract_json_document(stdout_text)
+    except ScannerExecutionError:
+        stderr_text = completed.stderr.decode("utf-8", errors="replace")
+        raise ScannerExecutionError(
+            f"Static analyzer returned no JSON document. stderr: {stderr_text[:500]}"
         )
-        if completed.returncode == 2:
-            raise ScannerExecutionError("Static analyzer failed before producing a complete result")
-        output_file.seek(0)
-        file_text = output_file.read().decode("utf-8", errors="strict")
-        if file_text.strip():
-            return file_text
-        # Fallback: older Semgrep printed JSON to stdout instead of the -o file.
-        return _extract_json_document(completed.stdout.decode("utf-8", errors="strict"))
 
 
 def _extract_json_document(text: str) -> str:
