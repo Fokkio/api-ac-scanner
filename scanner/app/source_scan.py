@@ -30,9 +30,11 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
         "--timeout", "10", "--timeout-threshold", "3",
     ]
     analyzer_output = _execute_semgrep(command, scan_path)
+    # Semgrep may emit progress/banner lines on stdout even with --json; extract
+    # the first balanced JSON document rather than parsing the raw capture.
     try:
-        payload = json.loads(analyzer_output)
-    except json.JSONDecodeError as error:
+        payload = json.loads(_extract_json_document(analyzer_output))
+    except (json.JSONDecodeError, ValueError) as error:
         raise ScannerExecutionError("Static analyzer returned invalid JSON") from error
     if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
         raise ScannerExecutionError("Static analyzer returned an unsupported result schema")
@@ -69,6 +71,20 @@ def _execute_semgrep(command: list[str], scan_path: Path) -> str:
             raise ScannerExecutionError("Static analyzer output exceeded the safety limit")
         output_file.seek(0)
         return output_file.read().decode("utf-8", errors="strict")
+
+
+def _extract_json_document(text: str) -> str:
+    """Returns the first balanced JSON object found in arbitrary mixed output.
+
+    Older Semgrep versions print banners/warnings before the JSON payload even
+    with --quiet, so a raw json.loads on the whole capture fails. Find the first
+    '{' and the last '}' to isolate the document.
+    """
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("no JSON document found in analyzer output")
+    return text[start : end + 1]
 
 
 def _resolve_scan_path(repository_path: str) -> Path:

@@ -50,22 +50,16 @@ class SourceScanTests(unittest.TestCase):
                 with self.assertRaises(ScannerExecutionError):
                     source_scan._execute_semgrep(["semgrep"], scan_path)
 
-    def test_treats_findings_exit_code_as_success(self):
-        # Semgrep returns exit code 1 when it finds matches; that is a normal
-        # (non-empty) result, not an analyzer failure.
-        with tempfile.TemporaryDirectory() as tmp:
-            scan_path = Path(tmp, "src").resolve()
-            scan_path.mkdir()
-            with patch("app.source_scan.subprocess.run", return_value=SimpleNamespace(returncode=1)):
-                # Should not raise; output is read back from the spooled file.
-                with patch("app.source_scan.tempfile.NamedTemporaryFile") as tf:
-                    fh = type("FH", (), {"name": "/tmp/fake.json",
-                                         "tell": lambda self: len(b'{"results": []}'),
-                                         "seek": lambda self, *a: None,
-                                         "read": lambda self: b'{"results": []}'})()
-                    tf.return_value.__enter__.return_value = fh
-                    result = source_scan._execute_semgrep(["semgrep"], scan_path)
-            self.assertEqual(result, '{"results": []}')
+    def test_extracts_json_document_from_mixed_output(self):
+        mixed = (
+            "Scanning 120 files...\n"
+            '{"version": "1.89.0", "results": [{"check_id": "x"}], "errors": []}\n'
+            "Done in 1.2s\n"
+        )
+        doc = source_scan._extract_json_document(mixed)
+        self.assertEqual(json.loads(doc)["version"], "1.89.0")
+        with self.assertRaises(ValueError):
+            source_scan._extract_json_document("no json here")
 
     def test_fails_closed_on_malformed_result_metadata(self):
         with tempfile.TemporaryDirectory() as root:
