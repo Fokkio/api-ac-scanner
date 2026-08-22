@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 from typing import Any
@@ -45,11 +46,12 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
 
 
 def _execute_semgrep(command: list[str], scan_path: Path) -> str:
-    """Writes analyzer JSON to a temp file via -o and reads it back.
+    """Runs Semgrep and returns the JSON report as a string.
 
-    Semgrep prints banners, code snippets and progress to stdout even with
-    --json, so capturing stdout yields a non-JSON mixture. Writing the report
-    with --json -o <file> keeps the result file clean (no tty formatting).
+    Different Semgrep versions disagree on where the JSON lands: some write
+    the --json report to the -o file, others print it (mixed with banners and
+    matched code) to stdout. Capture both; prefer the -o file, and if it is
+    empty fall back to extracting the JSON document from stdout.
     """
 
     with tempfile.NamedTemporaryFile(mode="w+b", suffix=".json", delete=True) as output_file:
@@ -57,17 +59,41 @@ def _execute_semgrep(command: list[str], scan_path: Path) -> str:
         full_command = [*command, "--json", "-o", output_path, str(scan_path)]
         completed = subprocess.run(
             full_command,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             timeout=SCAN_TIMEOUT_SECONDS,
             check=False,
         )
         if completed.returncode == 2:
             raise ScannerExecutionError("Static analyzer failed before producing a complete result")
-        if not output_file.read(1):
-            raise ScannerExecutionError("Static analyzer produced no output")
         output_file.seek(0)
-        return output_file.read().decode("utf-8", errors="strict")
+        file_text = output_file.read().decode("utf-8", errors="strict")
+        if file_text.strip():
+            return file_text
+        # Fallback: older Semgrep printed JSON to stdout instead of the -o file.
+        return _extract_json_document(completed.stdout.decode("utf-8", errors="strict"))
+
+
+def _extract_json_document(text: str) -> str:
+    """Returns the first JSON object found in mixed Semgrep output.
+
+    Semgrep prints banners and matched source snippets to stdout even with
+    --json, so the first '{' may belong to scanned code. Walk each '{' and try
+    to decode a JSON object from there with raw_decode, which tolerates trailing
+    non-JSON text.
+    """
+    decoder = json.JSONDecoder()
+    start = 0
+    while True:
+        idx = text.find("{", start)
+        if idx == -1:
+            break
+        try:
+            _obj, end = decoder.raw_decode(text, idx)
+            return text[idx:end]
+        except (ValueError, json.JSONDecodeError):
+            start = idx + 1
+    raise ScannerExecutionError("Static analyzer returned no JSON document")
 
 
 def _resolve_scan_path(repository_path: str) -> Path:
