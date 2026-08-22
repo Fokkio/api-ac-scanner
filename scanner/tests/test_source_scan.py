@@ -50,16 +50,15 @@ class SourceScanTests(unittest.TestCase):
                 with self.assertRaises(ScannerExecutionError):
                     source_scan._execute_semgrep(["semgrep"], scan_path)
 
-    def test_extracts_json_document_from_mixed_output(self):
-        mixed = (
-            "Scanning 120 files...\n"
-            '{"version": "1.89.0", "results": [{"check_id": "x"}], "errors": []}\n'
-            "Done in 1.2s\n"
-        )
-        doc = source_scan._extract_json_document(mixed)
-        self.assertEqual(json.loads(doc)["version"], "1.89.0")
-        with self.assertRaises(ValueError):
-            source_scan._extract_json_document("no json here")
+    def test_invokes_semgrep_with_json_output_flag(self):
+        captured = {}
+        def fake_run(command, **_kwargs):
+            captured["command"] = list(command)
+            return SimpleNamespace(returncode=0, stdout=b"", stderr=None)
+        with patch("app.source_scan.subprocess.run", side_effect=fake_run):
+            source_scan._execute_semgrep(["semgrep", "scan"], scan_path)
+        self.assertIn("--json", captured["command"])
+        self.assertIn("-o", captured["command"])
 
     def test_fails_closed_on_malformed_result_metadata(self):
         with tempfile.TemporaryDirectory() as root:

@@ -25,16 +25,14 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
     scan_path = _resolve_scan_path(repository_path)
     command = [
         "semgrep", "scan", "--config", str(RULES_DIRECTORY),
-        "--metrics", "off", "--quiet", "--no-git-ignore", "--jobs", "1",
+        "--metrics", "off", "--no-git-ignore", "--jobs", "1",
         "--max-target-bytes", "1048576", "--max-memory", "512",
         "--timeout", "10", "--timeout-threshold", "3",
     ]
     analyzer_output = _execute_semgrep(command, scan_path)
-    # Semgrep may emit progress/banner lines on stdout even with --json; extract
-    # the first balanced JSON document rather than parsing the raw capture.
     try:
-        payload = json.loads(_extract_json_document(analyzer_output))
-    except (json.JSONDecodeError, ValueError) as error:
+        payload = json.loads(analyzer_output)
+    except json.JSONDecodeError as error:
         raise ScannerExecutionError("Static analyzer returned invalid JSON") from error
     if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
         raise ScannerExecutionError("Static analyzer returned an unsupported result schema")
@@ -47,16 +45,16 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
 
 
 def _execute_semgrep(command: list[str], scan_path: Path) -> str:
-    """Writes analyzer JSON to a bounded temp file via --json-output.
+    """Writes analyzer JSON to a temp file via -o and reads it back.
 
-    Using --json-output (instead of capturing stdout) keeps stderr banners and
-    progress text out of the parsed result, which older Semgrep versions print
-    to stdout even with --quiet.
+    Semgrep prints banners, code snippets and progress to stdout even with
+    --json, so capturing stdout yields a non-JSON mixture. Writing the report
+    with --json -o <file> keeps the result file clean (no tty formatting).
     """
 
     with tempfile.NamedTemporaryFile(mode="w+b", suffix=".json", delete=True) as output_file:
         output_path = output_file.name
-        full_command = [*command, "--json-output", output_path, str(scan_path)]
+        full_command = [*command, "--json", "-o", output_path, str(scan_path)]
         completed = subprocess.run(
             full_command,
             stdout=subprocess.DEVNULL,
@@ -66,25 +64,10 @@ def _execute_semgrep(command: list[str], scan_path: Path) -> str:
         )
         if completed.returncode == 2:
             raise ScannerExecutionError("Static analyzer failed before producing a complete result")
-        output_size = output_file.tell()
-        if output_size > MAX_ANALYZER_OUTPUT_BYTES:
-            raise ScannerExecutionError("Static analyzer output exceeded the safety limit")
+        if not output_file.read(1):
+            raise ScannerExecutionError("Static analyzer produced no output")
         output_file.seek(0)
         return output_file.read().decode("utf-8", errors="strict")
-
-
-def _extract_json_document(text: str) -> str:
-    """Returns the first balanced JSON object found in arbitrary mixed output.
-
-    Older Semgrep versions print banners/warnings before the JSON payload even
-    with --quiet, so a raw json.loads on the whole capture fails. Find the first
-    '{' and the last '}' to isolate the document.
-    """
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end < start:
-        raise ValueError("no JSON document found in analyzer output")
-    return text[start : end + 1]
 
 
 def _resolve_scan_path(repository_path: str) -> Path:
