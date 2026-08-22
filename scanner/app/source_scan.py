@@ -25,7 +25,7 @@ def run_source_scan(repository_path: str) -> dict[str, list[Any]]:
     scan_path = _resolve_scan_path(repository_path)
     command = [
         "semgrep", "scan", "--config", str(RULES_DIRECTORY), "--json",
-        "--metrics", "off", "--quiet", "--no-git-ignore", "--jobs", "1",
+        "--metrics", "off", "--quiet", "--no-git-ignore", "--no-error", "--jobs", "1",
         "--max-target-bytes", "1048576", "--max-memory", "512",
         "--timeout", "10", "--timeout-threshold", "3", str(scan_path),
     ]

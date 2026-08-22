@@ -50,7 +50,14 @@ class SourceScanTests(unittest.TestCase):
                 with self.assertRaises(ScannerExecutionError):
                     source_scan._execute_semgrep(["semgrep"])
 
-    def test_fails_closed_on_malformed_result_metadata(self):
+    def test_invokes_semgrep_with_no_error_flag(self):
+        captured = {}
+        def fake_run(command, **_kwargs):
+            captured["command"] = list(command)
+            return SimpleNamespace(returncode=0, stdout=b"", stderr=None)
+        with patch("app.source_scan.subprocess.run", side_effect=fake_run):
+            source_scan._execute_semgrep(["semgrep", "scan"])
+        self.assertIn("--no-error", captured["command"])
         with tempfile.TemporaryDirectory() as root:
             scan_path = Path(root, "request").resolve()
             scan_path.mkdir()
