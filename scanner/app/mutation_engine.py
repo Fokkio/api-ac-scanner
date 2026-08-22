@@ -1,4 +1,4 @@
-"""Guarded local-only create-and-cleanup mutation check."""
+"""Guarded local or verified-remote create-and-cleanup mutation check."""
 
 from __future__ import annotations
 
@@ -9,14 +9,19 @@ from app.deep_engine import TestIdentity, validate_identity_headers
 from app.errors import OutboundRequestError, PolicyError
 from app.findings import create_finding
 from app.outbound import BoundedHttpClient
+from app.remote_authorization import MutationTargetAuthorization, authorize_state_changing_client
 
 MUTATION_BODY_LIMIT = 16_384
 
 
 async def run_mutation_scan(
-    target: str, path: str, body: dict[str, object], identity: TestIdentity,
+    target: str,
+    path: str,
+    body: dict[str, object],
+    identity: TestIdentity,
+    target_authorization: MutationTargetAuthorization = MutationTargetAuthorization(),
 ) -> dict[str, list[Any]]:
-    """POSTs one marked local test resource and DELETEs the same path."""
+    """POSTs one marked test resource and DELETEs the same exact path."""
 
     if not path.startswith("/__ac_test__/") or "?" in path:
         raise PolicyError("Mutation path must be inside the /__ac_test__/ namespace without a query")
@@ -27,9 +32,9 @@ async def run_mutation_scan(
         raise PolicyError("Mutation body exceeded 4096 bytes")
     headers = validate_identity_headers(identity)
 
-    async with await BoundedHttpClient.create(target, request_limit=2) as client:
-        if not client.target.is_local:
-            raise PolicyError("Mutation scans are restricted to explicit local targets")
+    verification_request_count = 1 if target_authorization.mode == "verified-remote" else 0
+    async with await BoundedHttpClient.create(target, request_limit=2 + verification_request_count) as client:
+        target_mode = await authorize_state_changing_client(client, target_authorization)
         try:
             created = await client.request_mutation("POST", path, headers, encoded_body, MUTATION_BODY_LIMIT)
         except OutboundRequestError:
@@ -48,9 +53,9 @@ async def run_mutation_scan(
     severity = "info" if state == "passed" else "high"
     finding = create_finding(
         category="safe-mutation",
-        rule_id="local-test-resource-create-cleanup",
-        title="Local test resource was created and cleaned up" if state == "passed" else "Mutation or cleanup did not complete cleanly",
-        description="A marked local resource received POST followed by DELETE at the exact same path.",
+        rule_id="guarded-test-resource-create-cleanup",
+        title="Test resource was created and cleaned up" if state == "passed" else "Mutation or cleanup did not complete cleanly",
+        description="A marked disposable resource received POST followed by DELETE at the exact same path.",
         state=state,
         confidence="high",
         severity=severity,
@@ -59,11 +64,15 @@ async def run_mutation_scan(
             "createStatus": created.status if created else "request-failed",
             "cleanupStatus": cleaned.status if cleaned else "request-failed",
             "cleanupSucceeded": cleanup_succeeded,
+            "targetMode": target_mode,
         },
         recommendation="Keep mutation tests isolated to disposable fixtures and investigate any failed cleanup immediately.",
         location=path,
     )
     return {
         "findings": [finding],
-        "warnings": ["V3.1 mutation is POST plus DELETE only and does not test PUT/PATCH or arbitrary resources."],
+        "warnings": [
+            "V3.2 mutation is POST plus DELETE only and does not test PUT/PATCH or arbitrary resources.",
+            "Verified-remote mode re-checks exact-origin ownership immediately before mutation.",
+        ],
     }

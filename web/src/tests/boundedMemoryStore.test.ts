@@ -3,27 +3,26 @@ import test from "node:test";
 import type { SessionData } from "express-session";
 import { BoundedMemoryStore } from "../security/BoundedMemoryStore";
 
-function sessionData(isAuthenticated = false, expires = new Date(Date.now() + 60_000)): SessionData {
+function sessionData(expires = new Date(Date.now() + 60_000)): SessionData {
   return {
     cookie: { originalMaxAge: 60_000, expires, httpOnly: true, path: "/" },
-    isAuthenticated,
   } as SessionData;
 }
 
-test("bounds session count and prefers evicting unauthenticated sessions", async () => {
+test("bounds session count and evicts the least recently touched session", async () => {
   const store = new BoundedMemoryStore(2, 60_000);
-  store.set("admin", sessionData(true));
-  store.set("anonymous", sessionData(false));
-  store.set("new", sessionData(false));
+  store.set("oldest", sessionData());
+  store.set("newer", sessionData());
+  store.set("newest", sessionData());
 
   assert.equal(store.getSize(), 2);
-  assert.ok(await getSession(store, "admin"));
-  assert.equal(await getSession(store, "anonymous"), null);
+  assert.equal(await getSession(store, "oldest"), null);
+  assert.ok(await getSession(store, "newer"));
 });
 
 test("prunes expired sessions", () => {
   const store = new BoundedMemoryStore(2, 60_000);
-  store.set("expired", sessionData(false, new Date(Date.now() - 1)));
+  store.set("expired", sessionData(new Date(Date.now() - 1)));
   assert.equal(store.getSize(), 0);
 });
 

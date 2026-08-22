@@ -1,6 +1,6 @@
-# คู่มือใช้งาน API Access-Control Scanner V3.1
+# คู่มือใช้งาน API Access-Control Scanner V3.2
 
-คู่มือนี้อธิบายการใช้งานตั้งแต่เปิดระบบครั้งแรก ไปจนถึง Quick Scan, Deep Scan, Safe Mutation, Guarded Workflow และการอ่านรายงาน โดยตัวอย่างที่มีการแก้ไขข้อมูลจะใช้เฉพาะ Docker Demo Lab ซึ่งเป็นระบบชั่วคราวภายในเครื่อง
+คู่มือนี้อธิบายการใช้งานตั้งแต่เปิดระบบครั้งแรก ไปจนถึง Quick Scan, Deep Scan, Safe Mutation, Guarded Workflow, Remote Safe Mutation และการอ่านรายงาน โดยตัวอย่าง mutation ใช้ Docker Demo Lab หรือ staging ที่มีข้อมูลทดสอบแยกจาก production
 
 > ใช้ scanner เฉพาะระบบที่คุณเป็นเจ้าของหรือได้รับอนุญาตอย่างชัดเจนเท่านั้น ห้ามใช้บัญชีจริง ข้อมูลจริง หรือ path ที่อาจกระทบ production กับ Mutation และ Workflow
 
@@ -23,12 +23,11 @@ D:\api-ac-scanner\api-ac-scanner V3.1
 2. ดับเบิลคลิก `run.bat`
 3. เลือก `1) Setup`
 4. ระบบจะสร้างหรือเปิดไฟล์ `.env`
-5. เก็บค่า `ADMIN_USERNAME` และ `ADMIN_PASSWORD` ไว้ใช้เข้าสู่ Owner Workspace
-6. ห้ามส่งไฟล์ `.env`, session secret หรือ scanner token ให้ผู้อื่น
-7. กลับมาที่เมนูแล้วเลือก `2) Build`
-8. เมื่อ build สำเร็จ เลือก `3) Start`
-9. เลือก `6) Status` ทุก service ควรแสดงสถานะ healthy
-10. เลือก `8) Open` หรือเปิด `http://127.0.0.1:3000`
+5. ห้ามส่งไฟล์ `.env`, session secret หรือ scanner token ให้ผู้อื่น
+6. กลับมาที่เมนูแล้วเลือก `2) Build`
+7. เมื่อ build สำเร็จ เลือก `3) Start`
+8. เลือก `6) Status` ทุก service ควรแสดงสถานะ healthy
+9. เลือก `8) Open` หรือเปิด `http://127.0.0.1:3000`; Scanner ไม่มีหน้า login
 
 คำสั่งทางเลือกสำหรับ PowerShell:
 
@@ -40,15 +39,15 @@ docker compose ps
 
 ## 3. เมนูหลักของผลิตภัณฑ์
 
-| เมนู | ใช้ทำอะไร | ต้องเข้าสู่ระบบ |
+| เมนู | ใช้ทำอะไร | ใช้ได้ใน local UI |
 | --- | --- | --- |
-| Quick scan | ตรวจ surface แบบไม่มี credential ด้วยคำขอที่ถูกจำกัด | ไม่ต้อง |
-| Authorization lab | ทดสอบ BOLA/BFLA ด้วย identity สองชุดและ policy ที่ระบุเอง | ต้อง |
-| API discovery | อ่าน OpenAPI, HAR, Postman หรือ source route แล้วสร้าง endpoint inventory | ต้อง |
-| Source scan | ตรวจ source code แบบ static และรายงานตำแหน่งที่ควรตรวจต่อ | ต้อง |
-| Correlation | เชื่อมหลักฐาน source scan กับ deep scan ตาม endpoint | ต้อง |
-| Safe mutation | POST resource ชั่วคราวแล้ว DELETE cleanup | ต้อง |
-| Workflow | รัน GET/POST/PUT/PATCH/DELETE ตามลำดับสูงสุด 8 ขั้น | ต้อง |
+| Quick scan | ตรวจ surface แบบไม่มี credential ด้วยคำขอที่ถูกจำกัด | ได้ |
+| Authorization lab | ทดสอบ BOLA/BFLA ด้วย identity สองชุดและ policy ที่ระบุเอง | ได้ |
+| API discovery | อ่าน OpenAPI, HAR, Postman หรือ source route แล้วสร้าง endpoint inventory | ได้ |
+| Source scan | ตรวจ source code แบบ static และรายงานตำแหน่งที่ควรตรวจต่อ | ได้ |
+| Correlation | เชื่อมหลักฐาน source scan กับ deep scan ตาม endpoint | ได้ |
+| Safe mutation | POST resource ชั่วคราวแล้ว DELETE cleanup | ได้ |
+| Workflow | รัน GET/POST/PUT/PATCH/DELETE ตามลำดับสูงสุด 8 ขั้น | ได้ |
 
 ## 4. Quick Scan
 
@@ -70,7 +69,7 @@ Quick Scan เหมาะสำหรับตรวจว่าเป้าห
 
 ## 5. เปิด Docker Demo Lab
 
-Demo Lab คือ Order Approval Portal ที่มีหน้าเว็บ, PostgreSQL, ผู้ใช้หลาย role และ disposable API สำหรับพิสูจน์ V3.1 โดยไม่แตะ production
+Demo Lab คือ Order Approval Portal ที่มีหน้าเว็บ, PostgreSQL, ผู้ใช้หลาย role และ disposable API สำหรับพิสูจน์ V3.2 โดยไม่แตะ production
 
 1. เปิด `run.bat`
 2. เลือก `9) Demo Lab`
@@ -91,15 +90,14 @@ Demo Lab คือ Order Approval Portal ที่มีหน้าเว็บ
 ## 6. เพิ่ม Demo Lab เป็น Verified Asset
 
 1. ที่ Scanner เลือก `Authorization lab`
-2. เข้าสู่ระบบด้วย `ADMIN_USERNAME` และ `ADMIN_PASSWORD` จาก `.env`
-3. ในหัวข้อ `Add your local or staging API` กรอก:
+2. ในหัวข้อ `Add your local or staging API` กรอก:
 
 ```text
 http://demo-api:4100
 ```
 
-4. กด `Add asset`
-5. asset ควรขึ้นสถานะ `Verified` อัตโนมัติ เพราะ `demo-api` อยู่ใน local allowlist
+3. กด `Add asset`
+4. asset ควรขึ้นสถานะ `Verified` อัตโนมัติ เพราะ `demo-api` อยู่ใน local allowlist
 
 อย่าใช้ `http://127.0.0.1:4100` เป็น scanner target ภายใน Docker เพราะ `127.0.0.1` ของ scanner container หมายถึงตัว scanner เอง ไม่ใช่ Order Portal
 
@@ -322,6 +320,29 @@ RUN DISPOSABLE WORKFLOW
 
 สำหรับการตรวจ adapter แบบสั้น ให้ใช้ POST หนึ่งขั้นบน path ที่ไม่ซ้ำกัน เช่น `/__ac_test__/resource-basic` ระบบจะ DELETE cleanup ใน `finally`
 
+## 11.1 Remote Safe Mutation บน staging
+
+Remote mode ปิดไว้โดยค่าเริ่มต้น ใช้เฉพาะ staging/test origin ที่มีฐานข้อมูลและบัญชีทดสอบแยกจาก production:
+
+1. เพิ่ม exact HTTPS origin ใน Authorization Workspace เช่น `https://staging-api.example.com`
+2. ติดตั้ง file/header/DNS challenge และกด `Verify now`
+3. ตั้งค่า `.env`:
+
+```dotenv
+REMOTE_SAFE_MUTATION_ENABLED=true
+REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS=https://staging-api.example.com
+```
+
+4. Restart scanner ด้วย `docker compose down` แล้ว `docker compose up -d --build`
+5. เปิด Mutation หรือ Workflow และเลือก asset ที่แสดง `verified remote`
+6. ใช้เฉพาะ path ใต้ `/__ac_test__/` และ body ที่มี `apiAcScannerTest: true`
+7. Mutation ใช้คำยืนยัน `MUTATE VERIFIED REMOTE TEST RESOURCE`
+8. Workflow ใช้คำยืนยัน `RUN VERIFIED REMOTE DISPOSABLE WORKFLOW`
+9. ระบบจะตรวจ challenge ซ้ำก่อนส่ง credential หรือ mutation ถ้า challenge ถูกถอดออก job ต้องหยุดก่อน POST
+10. ตรวจฐานข้อมูล/audit log หลังจบทุกครั้ง แม้รายงานจะระบุว่า cleanup สำเร็จ
+
+อย่าใส่ production origin ใน allowlist หาก namespace ใช้ฐานข้อมูลจริงหรือมี side effect ภายนอก เช่น email, payment, queue หรือ webhook เพราะ DELETE resource ไม่สามารถ rollback side effect เหล่านั้นได้
+
 ## 12. API Discovery, Source Scan และ Correlation
 
 ### API Discovery
@@ -372,7 +393,7 @@ Credential, password และ token ไม่ควรปรากฏใน rep
 
 1. เปิด `run.bat`
 2. เลือก `5) Stop`
-3. ระบบจะหยุดและลบ container/network ของ V3.1
+3. ระบบจะหยุดและลบ container/network ของ V3.2
 4. PostgreSQL ใน Demo Lab ใช้ tmpfs ข้อมูลจึงถูกล้างเมื่อ container ถูกลบ
 5. Source code, Docker images และ report artifacts ยังอยู่
 
@@ -392,11 +413,11 @@ docker compose --profile demo down --remove-orphans
 - เลือก `7) Logs`
 - ตรวจว่า port `3000` และ `4100` ไม่ถูกโปรแกรมอื่นใช้
 
-### Login Scanner ไม่ผ่าน
+### Scanner เปิดจากเครื่องอื่นไม่ได้
 
-- เปิด `.env` ผ่านเมนู `1) Setup`
-- ใช้ค่าจาก `ADMIN_USERNAME` และ `ADMIN_PASSWORD`
-- อย่าใช้บัญชี Alice/Bob/Admin ของ Demo Portal เข้าสู่ Scanner
+- เป็นพฤติกรรมที่ตั้งใจ: Compose bind UI เฉพาะ `127.0.0.1:3000`
+- ใช้ Scanner จากเครื่องที่รัน Docker เท่านั้น
+- ห้ามแก้เป็น `0.0.0.0:3000:3000` หรือเปิด tunnel/reverse proxy เพราะ Scanner ไม่มี login
 
 ### ไม่พบ asset ใน Mutation หรือ Workflow
 
@@ -404,6 +425,7 @@ docker compose --profile demo down --remove-orphans
 - target ต้องอยู่ใน `LOCAL_ALLOWED_HOSTS`
 - port ต้องอยู่ใน `LOCAL_ALLOWED_PORTS`
 - สำหรับ Docker Demo Lab ต้องใช้ `http://demo-api:4100`
+- remote asset ต้องเปิด `REMOTE_SAFE_MUTATION_ENABLED=true`, อยู่ใน exact origin allowlist และมี verification method จากการ verify รอบใหม่
 
 ### รายงานขึ้น Error
 
@@ -422,7 +444,9 @@ docker compose --profile demo down --remove-orphans
 ## 16. Checklist ก่อนใช้กับระบบของคุณ
 
 - [ ] มีหนังสือหรือขอบเขตการอนุญาตทดสอบ
-- [ ] ใช้ staging/local fixture ไม่ใช่ production สำหรับ Mutation/Workflow
+- [ ] ใช้ staging/local fixture ที่แยกข้อมูล ไม่ใช่ production database สำหรับ Mutation/Workflow
+- [ ] remote origin ใช้ HTTPS port 443 และอยู่ใน exact allowlist เท่านั้น
+- [ ] ownership challenge ยังออนไลน์ระหว่างเริ่ม workflow
 - [ ] มีบัญชีทดสอบอย่างน้อยสอง identity และ role ชัดเจน
 - [ ] มี object ที่ทราบเจ้าของและไม่ใช้ข้อมูลลูกค้าจริง
 - [ ] ระบุ expected allow/deny ครบทุก identity และ endpoint

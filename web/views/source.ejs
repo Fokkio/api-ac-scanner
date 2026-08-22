@@ -1,7 +1,7 @@
 <%- include('partials/header', { title: 'Source scan' }) %>
 <main id="main-content" class="narrow-page">
   <section class="panel">
-    <div class="eyebrow">AUTHENTICATED STATIC SCAN</div>
+    <div class="eyebrow">LOCAL STATIC SCAN</div>
     <h1>Scan source files</h1>
     <p>Upload up to 25 supported files. Each file is capped at 1 MiB and the temporary copy is removed after scanning.</p>
     <form class="stack-form" action="/scans/source" method="post" enctype="multipart/form-data">
@@ -12,7 +12,7 @@
       </label>
       <button type="submit">Run source scan</button>
     </form>
-    <p class="muted">V3.1 reports guidance only. Automated code modification is intentionally disabled.</p>
+    <p class="muted">V3.2 reports guidance only. Automated code modification is intentionally disabled.</p>
   </section>
 </main>
 <%- include('partials/footer') %>

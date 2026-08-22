@@ -65,10 +65,8 @@ export class BoundedMemoryStore extends session.Store {
 
   private evictOneSession(): void {
     const entries = [...this.sessions.entries()];
-    const unauthenticated = entries.filter(([, stored]) => !isAuthenticated(stored.value));
-    const candidates = unauthenticated.length > 0 ? unauthenticated : entries;
-    candidates.sort((left, right) => left[1].lastTouchedAt - right[1].lastTouchedAt);
-    const oldest = candidates[0];
+    entries.sort((left, right) => left[1].lastTouchedAt - right[1].lastTouchedAt);
+    const oldest = entries[0];
     if (oldest) this.sessions.delete(oldest[0]);
   }
 }
@@ -78,8 +76,4 @@ function resolveExpiry(value: SessionData, fallback: number): number {
   if (!expires) return fallback;
   const timestamp = expires instanceof Date ? expires.getTime() : new Date(expires).getTime();
   return Number.isFinite(timestamp) ? timestamp : fallback;
-}
-
-function isAuthenticated(value: SessionData): boolean {
-  return (value as SessionData & { isAuthenticated?: boolean }).isAuthenticated === true;
 }

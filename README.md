@@ -1,8 +1,10 @@
-# API Access-Control Scanner V3.1
+# API Access-Control Scanner V3.2
 
 เครื่องมือ local-first สำหรับช่วยตรวจ Authorization / Access Control ของ API ที่คุณเป็นเจ้าของหรือได้รับอนุญาตให้ทดสอบ โดยเน้น BOLA, BFLA, anonymous access, object-property exposure และ resource/account enumeration
 
-V3.1 เพิ่ม Safe Local Mutation และได้รับการขยายด้วย Guarded Workflow, authentication adapters และรายงาน HTML/PDF โดยยังเป็น single-node local lab ไม่ใช่ production SaaS
+V3.2 เพิ่ม Remote Safe Mutation บน Guarded Workflow เดิม โดย remote target ต้องเป็น exact HTTPS origin ที่ผ่าน ownership verification, เปิด feature flag, อยู่ใน allowlist และ re-verify challenge แบบสดก่อน authentication หรือ mutation ทุกครั้ง เครื่องมือนี้ยังเป็น single-node authorized test tool ไม่ใช่ production SaaS
+
+Web UI ไม่มีหน้า login และเชื่อถือผู้ใช้ที่เข้าถึงเครื่อง local โดยตรง จึงต้องรันผ่าน Compose ที่ให้มาและคง port mapping เป็น `127.0.0.1:3000:3000` เท่านั้น Web ปฏิเสธ Host ที่ไม่ใช่ loopback และปฏิเสธ cross-origin mutation ก่อนอ่าน body เพื่อลด CSRF/DNS-rebinding risk ส่วน session ยังถูกใช้สำหรับ CSRF token; `SESSION_SECRET` จึงยังจำเป็น การรัน `npm start` ตรง ๆ bind เฉพาะ `127.0.0.1`; Compose เท่านั้นที่ตั้ง `LISTEN_HOST=0.0.0.0` ภายใน container แล้วจำกัด host-side port ที่ loopback ห้าม publish UI ไปยัง LAN, reverse proxy หรืออินเทอร์เน็ตโดยไม่มี authentication/authorization ชุดใหม่
 
 คู่มือใช้งานภาษาไทยแบบทีละขั้น: [docs/USER-GUIDE-TH.md](docs/USER-GUIDE-TH.md)
 
@@ -18,25 +20,44 @@ V3.1 เพิ่ม Safe Local Mutation และได้รับการข
 - Authorization Matrix: แสดง Expected/Actual ของ baseline, alternate และ anonymous ต่อ endpoint
 - Correlation: จับคู่ static finding กับ runtime finding เมื่อ category และ normalized route template ตรงกัน แล้วเพิ่ม confidence โดยยังคงสถานะ `suspected`
 - Verification Engine: ออกสถานะ `verified` เฉพาะ allow/deny ที่ขัดกับ explicit policy rule และ response ไม่ใช่สถานะคลุมเครือ
-- Safe Local Mutation: POST resource ที่มี `apiAcScannerTest: true` ใต้ `/__ac_test__/` แล้ว DELETE path เดิมทันที เฉพาะ verified local allowlist
+- Safe Mutation: POST resource ที่มี `apiAcScannerTest: true` ใต้ `/__ac_test__/` แล้ว DELETE path เดิมทันที สำหรับ verified local asset หรือ verified-remote exact origin ที่เปิดใช้อย่างชัดเจน
 - Guarded Workflow: รัน GET/POST/PUT/PATCH/DELETE ตามลำดับได้สูงสุด 8 ขั้น เฉพาะ path ใต้ `/__ac_test__/` พร้อม expected allow/deny ต่อขั้น หยุด step ที่เหลือเมื่อผลก่อนหน้าไม่น่าเชื่อถือ และ reverse cleanup ใน `finally`
+- Remote ownership re-check: verified-remote mutation ใช้ HTTPS port 443 เท่านั้น ตรวจ file/header challenge ซ้ำผ่าน pinned client หรือ DNS TXT บน exact hostname ก่อนส่ง credential หรือ state-changing request
 - Authentication adapters: รองรับ Bearer, HTTP Basic, Cookie, API key, custom headers และ JSON login แบบ same-origin โดย token ที่ได้จาก adapter จะแทนที่ base credential ทั้งหมด
 - Report export: ดาวน์โหลดรายงาน self-contained HTML และ PDF โดย redaction evidence ที่มีชื่อหรือค่าเข้าข่าย credential ซ้ำอีกชั้น
-- Report states: `detected`, `suspected`, `needs-verification`, `passed`, `not-tested`, `error`
+- Report states: `detected`, `suspected`, `needs-verification`, `verified`, `passed`, `not-tested`, `error`
 
 คำว่า `suspected` ไม่ใช่การยืนยันช่องโหว่ ต้องเทียบ ownership, tenant และ role policy ของระบบจริงก่อนรายงาน
 
-Deep Scan ของ V3.1 ต้องใส่ policy JSON ให้ครบ baseline, alternate และ `Anonymous` สำหรับทุก object/function path หากขาดหรือซ้ำ scanner จะปฏิเสธก่อนยิง request
+Deep Scan ของ V3.2 ต้องใส่ policy JSON ให้ครบ baseline, alternate และ `Anonymous` สำหรับทุก object/function path หากขาดหรือซ้ำ scanner จะปฏิเสธก่อนยิง request
 
-Mutation Scan ต้องพิมพ์คำยืนยัน `MUTATE TEST RESOURCE` ใช้ path disposable ที่ขึ้นต้นด้วย `/__ac_test__/` และ target ต้องเป็น local asset ใน allowlist หลัง create สำเร็จ cleanup ต้องคืน 200/202/204; ค่า 404 ยอมรับได้เฉพาะเมื่อ create ไม่สำเร็จหรือผลไม่ทราบแน่ชัด
+Mutation Scan แบบ local ต้องพิมพ์ `MUTATE TEST RESOURCE`; แบบ verified remote ต้องพิมพ์ `MUTATE VERIFIED REMOTE TEST RESOURCE` ทุก path ต้องขึ้นต้นด้วย `/__ac_test__/` หลัง create สำเร็จ cleanup ต้องคืน 200/202/204; ค่า 404 ยอมรับได้เฉพาะเมื่อ create ไม่สำเร็จหรือผลไม่ทราบแน่ชัด
 
-Workflow Scan ต้องพิมพ์ `RUN DISPOSABLE WORKFLOW` ทุก path ต้องอยู่ใต้ `/__ac_test__/` และ target ต้องเป็น verified local asset ใน allowlist ระบบจำกัด 8 ขั้น, request body 4 KiB ต่อขั้น และยิง cleanup แบบ DELETE ย้อนลำดับให้ทุก path ที่ถูก POST/PUT/PATCH แม้ขั้นกลางล้มเหลว เมื่อ step ใด mismatch หรือ indeterminate ระบบจะไม่ยิง step ถัดไปและบันทึกเป็น `skipped`
+Workflow Scan แบบ local ต้องพิมพ์ `RUN DISPOSABLE WORKFLOW`; แบบ verified remote ต้องพิมพ์ `RUN VERIFIED REMOTE DISPOSABLE WORKFLOW` ระบบจำกัด 8 ขั้น, request body 4 KiB ต่อขั้น และยิง cleanup แบบ DELETE ย้อนลำดับให้ทุก path ที่ถูก POST/PUT/PATCH แม้ขั้นกลางล้มเหลว เมื่อ step ใด mismatch หรือ indeterminate ระบบจะไม่ยิง step ถัดไปและบันทึกเป็น `skipped`
+
+## Remote Safe Mutation (ปิดไว้โดยค่าเริ่มต้น)
+
+ใช้กับ staging/test API ที่มีฐานข้อมูลและบัญชีทดสอบแยกจาก production เท่านั้น:
+
+```dotenv
+REMOTE_SAFE_MUTATION_ENABLED=true
+REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS=https://staging-api.example.com
+```
+
+ข้อบังคับทั้งหมดต้องผ่านพร้อมกัน:
+
+- exact origin ต้องใช้ HTTPS port 443 และไม่มี path/query/credential
+- asset ต้องผ่าน file, header หรือ DNS ownership verification; asset เก่าที่ไม่มี verification method ต้อง re-verify
+- challenge ต้องยังตอบตรงค่าที่บันทึกไว้ในขณะเริ่มแต่ละ job
+- ทุก request ต้องเป็น same-origin และอยู่ใต้ `/__ac_test__/`
+- POST/PUT/PATCH body ต้องมี `apiAcScannerTest: true`; cleanup failure จะเป็น `needs-verification`
+- allowlist ถูกตรวจซ้ำทั้ง Web และ Scanner; การเปิด flag อย่างเดียวไม่พอ
 
 JSON-login adapter รับเฉพาะ same-origin relative path และ response token แบบ dotted JSON path เช่น `tokens.access` สามารถเลือก `Authentication adapter only` โดยไม่ต้องใส่ base credential ข้อมูล username/password/token อยู่ใน memory ของ queued job เท่านั้น ไม่บันทึกลง state, finding, HTML หรือ PDF
 
 ## Guarded Workflow
 
-เข้าเมนู `Workflow` แล้วเลือก verified local asset จากนั้นกำหนด identity, authentication adapter และ steps JSON ตัวอย่าง:
+เข้าเมนู `Workflow` แล้วเลือก eligible local หรือ verified-remote asset จากนั้นกำหนด identity, authentication adapter และ steps JSON ตัวอย่าง:
 
 ```json
 [
@@ -59,9 +80,8 @@ JSON-login adapter รับเฉพาะ same-origin relative path และ 
 `run.bat` เป็น launcher ขนาดเล็ก ส่วนเมนูทำงานใน `scripts/run.ps1` ซึ่ง PowerShell โหลดเข้า memory ตั้งแต่เริ่ม จึงไม่มี batch label ที่เสียหายเมื่อไฟล์ถูกอัปเดตระหว่างเปิดหน้าต่าง
 
 1. เลือก `2 Build` ได้ทันที ในครั้งแรกระบบจะสร้าง `.env` และสุ่ม secret ให้เอง
-2. จด `Username` และ `Password` ที่แสดงก่อน Build แล้วกดปุ่มใดก็ได้เพื่อดำเนินการต่อ
-3. เลือก `3 Start`
-4. เปิด <http://127.0.0.1:3000>
+2. เลือก `3 Start`
+3. เปิด <http://127.0.0.1:3000> แล้วใช้งานได้ทันทีโดยไม่มีหน้า login
 
 เลือก `1 Setup` เมื่อต้องการเปิดดูหรือแก้ `.env` ภายหลัง ถ้ามี placeholder ค้าง ระบบจะเติมเฉพาะค่านั้นและรักษาค่าที่ตั้งไว้แล้วทั้งหมด
 
@@ -75,13 +95,15 @@ docker compose up -d --build
 
 Web UI เปิดเฉพาะ `127.0.0.1:3000` และ scanner service ไม่ publish port ออกมาที่ host เมื่อเปิด profile `demo` จะมี Order Portal เพิ่มที่ `127.0.0.1:4100`
 
+Compose project name ยังคงเป็น `api-ac-scanner-v31` โดยตั้งใจเพื่อให้ upgrade แทนที่ stack เดิมและไม่ทิ้ง orphan containers; ชื่อนี้ไม่ใช่ product version ที่แสดงใน UI
+
 ## ทดลองกับ Demo Lab
 
 Demo Lab เป็น Order Approval Portal แบบ disposable มีหน้าเว็บ, PostgreSQL, ผู้ใช้สาม role และ test resources ใต้ `/__ac_test__/` ใช้ credential ด้านล่างเฉพาะในเครื่องนี้และห้ามนำไปใช้กับระบบจริง
 
 1. ใน `run.bat` เลือก `9 Demo Lab`
 2. เปิด portal ที่ `http://127.0.0.1:4100` และ scanner ที่ `http://127.0.0.1:3000`
-3. เข้า scanner UI ด้วยค่าจาก `.env` แล้วเพิ่ม asset `http://demo-api:4100` ซึ่งจะ verified อัตโนมัติเพราะอยู่ใน local allowlist
+3. เข้า scanner UI แล้วเพิ่ม asset `http://demo-api:4100` ซึ่งจะ verified อัตโนมัติเพราะอยู่ใน local allowlist
 4. ใช้บัญชี fixture:
 
 ```text
@@ -123,6 +145,8 @@ Alice custom:  {"x-demo-user":"alice","x-demo-secret":"alice-custom-secret-12345
 LOCAL_MODE=true
 LOCAL_ALLOWED_HOSTS=host.docker.internal,localhost,127.0.0.1,::1,demo-api
 LOCAL_ALLOWED_PORTS=80,443,3000,4000,4100,5000,8000,8080,8443
+REMOTE_SAFE_MUTATION_ENABLED=false
+REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS=
 ```
 
 - API ที่รันบน Windows host ให้ใช้ `http://host.docker.internal:<port>` จาก UI
@@ -151,8 +175,8 @@ docker compose run --rm scanner semgrep scan --config semgrep_rules --validate
 ## โครงสร้าง
 
 ```text
-api-ac-scanner V3.1/
-├── web/                 Express/TypeScript UI, auth, queue, reports
+api-ac-scanner/
+├── web/                 Express/TypeScript UI, CSRF session, queue, reports
 ├── scanner/             FastAPI, bounded HTTP client, Semgrep rules
 ├── fixtures/            safe/vulnerable source fixtures and local demo API
 ├── docs/                architecture, security and verified evidence
@@ -163,7 +187,8 @@ api-ac-scanner V3.1/
 
 ## ข้อจำกัดที่ต้องรู้ตามตรง
 
-- Deep scan matrix เดิมยังใช้เฉพาะ `GET`; write/delete authorization อยู่ใน Guarded Workflow ซึ่งจำกัดเฉพาะ disposable local namespace
+- Scanner ไม่มี login: ผู้ใช้หรือโปรแกรมใดก็ตามที่เข้าถึง `127.0.0.1:3000` ภายใต้บัญชีเครื่องนี้สามารถดูรายงานและสั่ง scan ได้ จึงห้ามเปลี่ยน Docker port binding เป็นทุก interface
+- Deep scan matrix เดิมยังใช้เฉพาะ `GET`; write/delete authorization อยู่ใน Guarded Workflow ซึ่งจำกัดเฉพาะ disposable namespace และ explicit target authorization
 - Identity Profile รองรับการส่ง credential ที่มีอยู่แล้ว แต่ยังไม่ทำ browser login/refresh token/SSO flow ให้อัตโนมัติ
 - Label/role/tenant เป็นบริบทที่ผู้ใช้กรอก ไม่ใช่ข้อพิสูจน์ policy; ผู้ใช้ยังต้องเลือก object/path และบัญชีทดสอบให้ถูก
 - Secret headers อยู่เฉพาะใน queued job และ scanner request; ไม่บันทึกลง report/state แต่เครื่อง local ที่รัน Docker ยังเป็น trust boundary
@@ -173,10 +198,11 @@ api-ac-scanner V3.1/
 - Discovery ไม่ crawl หรือ brute-force endpoint; รูปแบบ source ที่สร้าง route แบบ dynamic, router prefix และ framework ที่ไม่รองรับอาจหาไม่เจอ
 - HAR/Postman ที่ใช้ environment variables นอกเหนือจาก `{{baseUrl}}` อาจต้อง export URL ให้ชัดเจนก่อน import
 - Endpoint classification เป็น heuristic และไม่รู้ ownership/role policy จนกว่าจะมี test identity กับ expected policy ที่ถูกต้อง
-- V3.1 correlation เป็น exact category + route-template match; code ที่ประกอบ route แบบ dynamic หรือแยก router prefix อาจไม่ถูกจับคู่
+- V3.2 correlation เป็น exact category + route-template match; code ที่ประกอบ route แบบ dynamic หรือแยก router prefix อาจไม่ถูกจับคู่
 - Confidence ที่สูงขึ้นจาก correlation ไม่เท่ากับ confirmed vulnerability เพราะ expected business policy ยังไม่ได้ถูกประกาศแบบ machine-readable
 - สถานะ `verified` ยืนยันว่า response ขัดกับ policy ที่ผู้ใช้ส่งมา ไม่ได้พิสูจน์ว่าผู้ใช้กรอก policy ทางธุรกิจถูกต้อง จึงต้อง review policy declaration ก่อนรายงานภายนอก
-- Guarded Workflow รองรับ PUT/PATCH/DELETE แล้ว แต่ไม่เปิดให้ยิง arbitrary production path และไม่รับประกัน rollback ของ side effect ที่อยู่นอก resource path หรือทำงาน asynchronous ค่า cleanup 404 หลัง mutation ที่ยืนยันว่าสำเร็จจะถูกจัดเป็น `needs-verification` เว้นแต่มี explicit DELETE สำเร็จก่อนหน้า
+- Guarded Workflow ไม่เปิดให้ยิง arbitrary production path และไม่รับประกัน rollback ของ side effect ที่อยู่นอก resource path หรือทำงาน asynchronous ค่า cleanup 404 หลัง mutation ที่ยืนยันว่าสำเร็จจะถูกจัดเป็น `needs-verification` เว้นแต่มี explicit DELETE สำเร็จก่อนหน้า
+- Remote Safe Mutation พิสูจน์การควบคุม exact origin ไม่ได้พิสูจน์ว่า database เป็น test database ผู้ดูแลต้องแยกข้อมูลและตรวจ cleanup เอง
 - JSON-login adapter รองรับ JSON token response แบบหนึ่งขั้น ยังไม่รองรับ OAuth authorization-code, PKCE, SAML, MFA, CAPTCHA, browser automation หรือ refresh-token rotation
 - PDF ใช้ built-in PDF font จึงเหมาะกับข้อมูล ASCII/Latin; ใช้ HTML export เมื่อต้องรักษาอักขระไทยหรือ Unicode ทั้งหมด
 - Property check ดูชื่อ field ระดับบนสุดของ JSON เท่านั้น ไม่ได้วิเคราะห์ nested schema

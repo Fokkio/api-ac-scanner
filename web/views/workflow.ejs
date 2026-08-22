@@ -8,16 +8,16 @@
     </div>
   </section>
   <section class="warning-card">
-    Only verified allowlisted local assets and query-free paths under <code>/__ac_test__/</code> are accepted.
+    Only verified local assets or explicitly allowlisted HTTPS origins with live ownership proof are accepted. Every path must remain under <code>/__ac_test__/</code>.
     Never use production data. A failed cleanup still requires manual investigation.
   </section>
   <section class="panel">
     <form class="stack-form" action="/scans/workflow" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label>Verified local asset
+      <label>Eligible test asset
         <select name="assetId" required>
-          <option value="">Select local asset</option>
-          <% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %></option><% }); %>
+          <option value="">Select an asset</option>
+          <% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %> — <%= ['file','header','dns'].includes(asset.verificationMethod) ? 'verified remote' : 'local' %></option><% }); %>
         </select>
       </label>
 
@@ -47,7 +47,7 @@
       <details>
         <summary>JSON login adapter example</summary>
         <pre>{"type":"json-login","path":"/__ac_test__/login","usernameField":"username","passwordField":"password","username":"fixture-owner","password":"fixture-password","tokenJsonPath":"tokens.access","headerName":"authorization","scheme":"Bearer"}</pre>
-        <p class="muted">The login request is same-origin, local-only and bounded. The returned token is held in memory and replaces all configured base credentials for workflow steps.</p>
+        <p class="muted">The login request is same-origin, bounded and sent only after target authorization. The returned token is held in memory and replaces all configured base credentials for workflow steps.</p>
       </details>
 
       <label>Ordered workflow steps JSON
@@ -60,7 +60,8 @@
 ]</textarea>
       </label>
       <p class="muted">Each step declares an explicit expected <code>allow</code> or <code>deny</code>. A determinate mismatch is reported as verified against that declaration.</p>
-      <label>Confirmation<input name="confirmation" required placeholder="RUN DISPOSABLE WORKFLOW" autocomplete="off" /></label>
+      <label>Confirmation<input name="confirmation" required placeholder="Type the exact phrase for the selected target" autocomplete="off" /></label>
+      <p class="muted">Local: <code>RUN DISPOSABLE WORKFLOW</code><br />Verified remote: <code>RUN VERIFIED REMOTE DISPOSABLE WORKFLOW</code></p>
       <button type="submit">Run disposable workflow</button>
     </form>
   </section>

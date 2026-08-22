@@ -6,14 +6,16 @@ from app.deep_engine import TestIdentity
 from app.errors import PolicyError
 from app.outbound import BoundedResponse
 from app.policy import ValidatedTarget
+from app.remote_authorization import MutationTargetAuthorization
 from app.workflow_engine import run_workflow_scan
 
 
 class FakeWorkflowClient:
     def __init__(self, is_local=True):
+        origin = "http://demo-api:4100" if is_local else "https://staging.example.test"
         self.target = ValidatedTarget(
-            "http://demo-api:4100/", "http://demo-api:4100", "demo-api", 4100,
-            ("172.20.0.2",), is_local,
+            f"{origin}/", origin, "demo-api" if is_local else "staging.example.test",
+            4100 if is_local else 443, ("172.20.0.2",), is_local,
         )
         self.calls = []
 
@@ -181,6 +183,32 @@ class WorkflowEngineTests(unittest.IsolatedAsyncioTestCase):
             [{"name": "forbidden-create", "method": "POST", "path": "/__ac_test__/one", "body": {"apiAcScannerTest": True}, "expected": "deny"}],
         )
         self.assertEqual(result["findings"][0]["state"], "verified")
+
+    @patch("app.remote_authorization.verify_asset_control_with_client", new_callable=AsyncMock)
+    @patch("app.workflow_engine.BoundedHttpClient.create", new_callable=AsyncMock)
+    async def test_remote_proof_precedes_login_and_workflow_steps(self, create_client, verify_proof):
+        client = FakeWorkflowClient(is_local=False)
+        create_client.return_value = client
+        verify_proof.return_value = True
+        proof = MutationTargetAuthorization(
+            mode="verified-remote", challenge="challenge-value-with-24-characters",
+            verification_method="header",
+        )
+        with patch.dict("os.environ", {
+            "REMOTE_SAFE_MUTATION_ENABLED": "true",
+            "REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS": "https://staging.example.test",
+        }, clear=False):
+            result = await run_workflow_scan(
+                "https://staging.example.test",
+                TestIdentity("Remote owner", "owner", "test", {"authorization": "Bearer static-token-123456"}),
+                {"type": "none"},
+                [{"name": "read", "method": "GET", "path": "/__ac_test__/one", "body": None, "expected": "allow"}],
+                proof,
+            )
+
+        verify_proof.assert_awaited_once()
+        self.assertEqual([call[0] for call in client.calls], ["GET"])
+        self.assertIn("verified-remote", result["warnings"][0])
 
 
 if __name__ == "__main__":

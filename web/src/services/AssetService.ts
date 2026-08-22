@@ -4,6 +4,7 @@ import type { TargetPolicy } from "../config/appConfig";
 import type { ScannerClient } from "../clients/ScannerClient";
 import type { JsonStateRepository } from "../repositories/JsonStateRepository";
 import type { AssetRecord } from "../types/domain";
+import type { ExternalAssetVerificationMethod } from "../types/domain";
 
 /** Manages ownership challenges required before authorized deep scans. */
 export class AssetService {
@@ -21,7 +22,7 @@ export class AssetService {
     }
     const asset = await this.repository.createAsset(target.origin);
     if (isConfiguredLocalTarget(target, this.targetPolicy) && !asset.isVerified) {
-      return this.repository.markAssetVerified(asset.id);
+      return this.repository.markAssetVerified(asset.id, "local-allowlist");
     }
     return asset;
   }
@@ -30,18 +31,18 @@ export class AssetService {
   public async verifyAsset(assetId: string, verificationMethod: string): Promise<AssetRecord> {
     const asset = this.repository.getAsset(assetId);
     if (!asset) throw new NotFoundError("Asset not found");
-    const allowedMethods = new Set(["file", "header", "dns"]);
-    if (!allowedMethods.has(verificationMethod)) {
+    const allowedMethods = new Set<ExternalAssetVerificationMethod>(["file", "header", "dns"]);
+    if (!allowedMethods.has(verificationMethod as ExternalAssetVerificationMethod)) {
       throw new ValidationError("Unsupported asset verification method");
     }
     const isVerified = await this.scannerClient.verifyAsset(asset.origin, asset.challenge, verificationMethod);
     if (!isVerified) {
       throw new ForbiddenError("Verification file was not found or did not contain the exact challenge");
     }
-    return this.repository.markAssetVerified(asset.id);
+    return this.repository.markAssetVerified(asset.id, verificationMethod as ExternalAssetVerificationMethod);
   }
 
-  /** Lists assets available to the authenticated administrator. */
+  /** Lists assets available to the local operator. */
   public listAssets(): AssetRecord[] {
     return this.repository.listAssets();
   }

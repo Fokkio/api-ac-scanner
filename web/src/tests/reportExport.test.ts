@@ -4,7 +4,7 @@ import { buildPdfReport, buildStandaloneHtmlReport } from "../services/ReportExp
 import type { ScanRecord } from "../types/domain";
 
 const scan: ScanRecord = {
-  id: "a".repeat(48), kind: "workflow", target: "http://local.test/<unsafe>?access_token=url-secret", ownerScope: "admin",
+  id: "a".repeat(48), kind: "workflow", target: "http://local.test/<unsafe>?access_token=url-secret",
   status: "done", progress: 100, stage: "Report ready", warnings: ["review coverage"], endpoints: [], matrix: [],
   createdAt: "2026-08-21T00:00:00.000Z", updatedAt: "2026-08-21T00:00:01.000Z", expiresAt: "2026-08-22T00:00:00.000Z",
   findings: [{

@@ -1,1 +1,1 @@
-"""API Access-Control Scanner V3.1 service package."""
+"""API Access-Control Scanner V3.2 service package."""

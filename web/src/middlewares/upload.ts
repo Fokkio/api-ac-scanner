@@ -3,42 +3,35 @@ import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
 import multer from "multer";
-import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { ValidationError } from "../errors/AppError";
+import type { RequestHandler } from "express";
+import { ForbiddenError, ValidationError } from "../errors/AppError";
 import { isAllowedDiscoveryFile, isAllowedSourceFile } from "../security/inputPolicy";
+import { hasValidCsrfToken } from "./csrf";
 
 const MAX_FILE_COUNT = 25;
 const MAX_FILE_BYTES = 1_048_576;
 
-/** Creates one request-scoped upload directory before Multer processes files. */
-export function createUploadDirectory(uploadRoot: string): RequestHandler {
-  return (request: Request, _response: Response, next: NextFunction) => {
-    const directory = path.join(uploadRoot, crypto.randomBytes(24).toString("hex"));
-    fs.mkdirSync(directory, { recursive: true });
-    request.uploadDirectory = directory;
-    next();
-  };
-}
-
 /** Creates a bounded Multer handler that stores every request in one directory. */
-export function createSourceUploadHandler(): RequestHandler {
-  return createUploadHandler("sources", isAllowedSourceFile);
+export function createSourceUploadHandler(uploadRoot: string): RequestHandler {
+  return createUploadHandler(uploadRoot, "sources", isAllowedSourceFile);
 }
 
 /** Creates a bounded upload handler for OpenAPI, HAR, Postman and source artifacts. */
-export function createDiscoveryUploadHandler(): RequestHandler {
-  return createUploadHandler("artifacts", isAllowedDiscoveryFile);
+export function createDiscoveryUploadHandler(uploadRoot: string): RequestHandler {
+  return createUploadHandler(uploadRoot, "artifacts", isAllowedDiscoveryFile);
 }
 
 function createUploadHandler(
+  uploadRoot: string,
   fieldName: string,
   isAllowedFile: (filename: string) => boolean,
 ): RequestHandler {
   const storage = multer.diskStorage({
     destination: (request, _file, callback) => {
       if (!request.uploadDirectory) {
-        callback(new Error("Upload directory was not initialized"), "");
-        return;
+        const directory = path.join(uploadRoot, crypto.randomBytes(24).toString("hex"));
+        fs.mkdirSync(directory, { recursive: true });
+        request.uploadDirectory = directory;
       }
       callback(null, request.uploadDirectory);
     },
@@ -51,7 +44,11 @@ function createUploadHandler(
   return multer({
     storage,
     limits: { files: MAX_FILE_COUNT, fileSize: MAX_FILE_BYTES, fields: 5 },
-    fileFilter: (_request, file, callback) => {
+    fileFilter: (request, file, callback) => {
+      if (!hasValidCsrfToken(request)) {
+        callback(new ForbiddenError("Invalid or expired request token"));
+        return;
+      }
       if (!isAllowedFile(file.originalname)) {
         callback(new ValidationError("Unsupported upload file type"));
         return;

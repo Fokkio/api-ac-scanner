@@ -1,3 +1,4 @@
+# Retain the existing Compose project identity so upgrades replace the local stack instead of orphaning it.
 name: api-ac-scanner-v31
 
 services:
@@ -10,6 +11,8 @@ services:
       LOCAL_MODE: ${LOCAL_MODE:-true}
       LOCAL_ALLOWED_HOSTS: ${LOCAL_ALLOWED_HOSTS:-host.docker.internal,localhost,127.0.0.1,::1,demo-api}
       LOCAL_ALLOWED_PORTS: ${LOCAL_ALLOWED_PORTS:-80,443,3000,4000,4100,5000,8000,8080,8443}
+      REMOTE_SAFE_MUTATION_ENABLED: ${REMOTE_SAFE_MUTATION_ENABLED:-false}
+      REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS: ${REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     expose:
@@ -43,11 +46,8 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "3000"
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:3000}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      LISTEN_HOST: "0.0.0.0"
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:?set ADMIN_USERNAME in .env}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
       SCANNER_INTERNAL_TOKEN: ${SCANNER_INTERNAL_TOKEN:?set SCANNER_INTERNAL_TOKEN in .env}
       SCANNER_URL: http://scanner:8001
       DATA_DIR: /data
@@ -60,6 +60,8 @@ services:
       LOCAL_MODE: ${LOCAL_MODE:-true}
       LOCAL_ALLOWED_HOSTS: ${LOCAL_ALLOWED_HOSTS:-host.docker.internal,localhost,127.0.0.1,::1,demo-api}
       LOCAL_ALLOWED_PORTS: ${LOCAL_ALLOWED_PORTS:-80,443,3000,4000,4100,5000,8000,8080,8443}
+      REMOTE_SAFE_MUTATION_ENABLED: ${REMOTE_SAFE_MUTATION_ENABLED:-false}
+      REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS: ${REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS:-}
     ports:
       - "127.0.0.1:3000:3000"
     volumes:

@@ -47,6 +47,8 @@ test("allows only explicitly configured local hosts and development ports", () =
     localMode: true,
     localAllowedHosts: new Set(["host.docker.internal"]),
     localAllowedPorts: new Set([4100]),
+    remoteSafeMutationEnabled: false,
+    remoteSafeMutationAllowedOrigins: new Set(),
   };
   assert.equal(
     normalizePublicTarget("http://host.docker.internal:4100", policy),
@@ -60,6 +62,8 @@ test("normalizes bracketed IPv6 before applying the exact local allowlist", () =
     localMode: true,
     localAllowedHosts: new Set(["::1"]),
     localAllowedPorts: new Set([4100]),
+    remoteSafeMutationEnabled: false,
+    remoteSafeMutationAllowedOrigins: new Set(),
   };
   assert.equal(normalizePublicTarget("http://[::1]:4100", policy), "http://[::1]:4100/");
 });

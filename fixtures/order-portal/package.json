@@ -2,7 +2,7 @@
   "name": "api-ac-order-portal-fixture",
   "version": "1.0.0",
   "private": true,
-  "description": "Disposable multi-role web and PostgreSQL fixture for API AC Scanner V3.1",
+  "description": "Disposable multi-role web and PostgreSQL fixture for API AC Scanner V3.2",
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",

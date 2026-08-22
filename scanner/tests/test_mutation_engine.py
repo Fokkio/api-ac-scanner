@@ -7,13 +7,15 @@ from app.errors import OutboundRequestError
 from app.mutation_engine import run_mutation_scan
 from app.outbound import BoundedResponse
 from app.policy import ValidatedTarget
+from app.remote_authorization import MutationTargetAuthorization
 
 
 class FakeMutationClient:
     def __init__(self, is_local=True):
+        origin = "http://demo-api:4100" if is_local else "https://staging.example.test"
         self.target = ValidatedTarget(
-            "http://demo-api:4100/", "http://demo-api:4100", "demo-api", 4100,
-            ("172.20.0.2",), is_local,
+            f"{origin}/", origin, "demo-api" if is_local else "staging.example.test",
+            4100 if is_local else 443, ("172.20.0.2",), is_local,
         )
         self.calls = []
 
@@ -81,6 +83,31 @@ class MutationEngineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([call[0] for call in client.calls], ["POST", "DELETE"])
         self.assertEqual(result["findings"][0]["state"], "needs-verification")
         self.assertEqual(result["findings"][0]["evidence"]["createStatus"], "request-failed")
+
+    @patch("app.remote_authorization.verify_asset_control_with_client", new_callable=AsyncMock)
+    @patch("app.mutation_engine.BoundedHttpClient.create", new_callable=AsyncMock)
+    async def test_remote_proof_is_checked_before_create_and_cleanup(self, create_client, verify_proof):
+        client = FakeMutationClient(is_local=False)
+        create_client.return_value = client
+        verify_proof.return_value = True
+        proof = MutationTargetAuthorization(
+            mode="verified-remote", challenge="challenge-value-with-24-characters",
+            verification_method="file",
+        )
+        with patch.dict("os.environ", {
+            "REMOTE_SAFE_MUTATION_ENABLED": "true",
+            "REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS": "https://staging.example.test",
+        }, clear=False):
+            result = await run_mutation_scan(
+                "https://staging.example.test", "/__ac_test__/resource-1",
+                {"apiAcScannerTest": True},
+                TestIdentity("Tester", "", "", {"authorization": "Bearer test-token-123456"}),
+                proof,
+            )
+
+        verify_proof.assert_awaited_once()
+        self.assertEqual([call[0] for call in client.calls], ["POST", "DELETE"])
+        self.assertEqual(result["findings"][0]["evidence"]["targetMode"], "verified-remote")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ import { AssetService } from "./services/AssetService";
 import { ScanService } from "./services/ScanService";
 import { removeOrphanedUploadDirectories } from "./middlewares/upload";
 
-/** Initializes dependencies and starts the V3.1 local-first web service. */
+/** Initializes dependencies and starts the V3.2 local-first web service. */
 async function startServer(): Promise<void> {
   const config = loadAppConfig();
   await fs.mkdir(config.uploadRoot, { recursive: true });
@@ -20,14 +20,14 @@ async function startServer(): Promise<void> {
   const assetService = new AssetService(repository, scannerClient, config.targetPolicy);
   const app = createApp({ config, scanService, assetService, scanQueue });
 
-  app.listen(config.port, "0.0.0.0", () => {
-    console.info(`API AC Scanner V3.1 listening on port ${config.port}`);
+  app.listen(config.port, config.listenHost, () => {
+    console.info(`API AC Scanner V3.2 listening on ${config.listenHost}:${config.port}`);
   });
 }
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled promise rejection", { reason });
-  process.exitCode = 1;
+  process.exit(1);
 });
 
 process.on("uncaughtException", (error) => {

@@ -85,7 +85,7 @@ const server = http.createServer((request, response) => {
     return;
   }
   if (request.url === "/") {
-    respond(response, 200, { name: "V3.1 intentionally vulnerable local fixture" });
+    respond(response, 200, { name: "V3.2 intentionally vulnerable local fixture" });
     return;
   }
   if (request.url === "/api/orders/1") {

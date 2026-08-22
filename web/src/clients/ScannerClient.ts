@@ -1,6 +1,6 @@
 import { UpstreamError } from "../errors/AppError";
 import type { ScannerResult } from "../types/domain";
-import type { AuthenticationAdapter, WorkflowStep } from "../types/domain";
+import type { AuthenticationAdapter, MutationTargetAuthorization, WorkflowStep } from "../types/domain";
 
 export const WORKFLOW_TIMEOUT_MILLISECONDS = 160_000;
 
@@ -55,22 +55,30 @@ export class ScannerClient {
     );
   }
 
-  /** Creates and immediately cleans up one marked local test resource. */
+  /** Creates and immediately cleans up one marked local or verified-remote test resource. */
   public mutationScan(request: {
     target: string;
     path: string;
     body: Record<string, unknown>;
     identity: DeepScannerRequest["identities"][number];
+    targetAuthorization: MutationTargetAuthorization;
   }): Promise<ScannerResult> {
-    return this.post<ScannerResult>("/v3/scans/mutation", request, 45_000);
+    return this.post<ScannerResult>("/v3/scans/mutation", {
+      target: request.target,
+      path: request.path,
+      body: request.body,
+      identity: request.identity,
+      target_authorization: serializeTargetAuthorization(request.targetAuthorization),
+    }, 45_000);
   }
 
-  /** Runs a guarded local workflow with optional ephemeral login acquisition. */
+  /** Runs a guarded local or verified-remote workflow with optional login acquisition. */
   public workflowScan(request: {
     target: string;
     identity: DeepScannerRequest["identities"][number];
     authentication: AuthenticationAdapter;
     steps: WorkflowStep[];
+    targetAuthorization: MutationTargetAuthorization;
   }): Promise<ScannerResult> {
     return this.post<ScannerResult>("/v3/scans/workflow", {
       target: request.target,
@@ -87,6 +95,7 @@ export class ScannerClient {
         scheme: request.authentication.scheme,
       },
       steps: request.steps,
+      target_authorization: serializeTargetAuthorization(request.targetAuthorization),
     }, WORKFLOW_TIMEOUT_MILLISECONDS);
   }
 
@@ -125,4 +134,13 @@ export class ScannerClient {
       clearTimeout(timeoutHandle);
     }
   }
+}
+
+function serializeTargetAuthorization(authorization: MutationTargetAuthorization): Record<string, string> {
+  if (authorization.mode === "local") return { mode: "local" };
+  return {
+    mode: authorization.mode,
+    challenge: authorization.challenge,
+    verification_method: authorization.verificationMethod,
+  };
 }

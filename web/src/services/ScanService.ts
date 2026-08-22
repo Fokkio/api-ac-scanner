@@ -4,13 +4,17 @@ import { ForbiddenError, NotFoundError, ValidationError } from "../errors/AppErr
 import type { BoundedScanQueue } from "../queue/BoundedScanQueue";
 import type { JsonStateRepository } from "../repositories/JsonStateRepository";
 import {
-  isConfiguredLocalTarget,
   isDisposableTestPath,
   normalizePublicTarget,
   parseRelativePaths,
 } from "../security/inputPolicy";
 import type { DeepScanInput, MutationScanInput, ScanRecord, ScannerResult, WorkflowScanInput } from "../types/domain";
 import type { TargetPolicy } from "../config/appConfig";
+import {
+  getMutationConfirmation,
+  getWorkflowConfirmation,
+  requireMutationTargetAuthorization,
+} from "../security/mutationTargetPolicy";
 
 type ScanOperation = () => Promise<ScannerResult>;
 
@@ -28,7 +32,7 @@ export class ScanService {
   public async createQuickScan(rawTarget: unknown, hasConsent: boolean): Promise<ScanRecord> {
     if (!hasConsent) throw new ValidationError("You must confirm that you are authorized to test this target");
     const target = normalizePublicTarget(rawTarget, this.targetPolicy);
-    return this.createQueuedScan("quick", target, "public", () => this.scannerClient.quickScan(target));
+    return this.createQueuedScan("quick", target, () => this.scannerClient.quickScan(target));
   }
 
   /** Enqueues a verified-asset deep scan while keeping credentials in memory only. */
@@ -48,7 +52,7 @@ export class ScanService {
       throw new ValidationError("The two profiles must use different credentials");
     }
 
-    return this.createQueuedScan("deep", asset.origin, "admin", () =>
+    return this.createQueuedScan("deep", asset.origin, () =>
       this.scannerClient.deepScan({
         target: asset.origin,
         object_paths: objectPaths,
@@ -63,7 +67,7 @@ export class ScanService {
 
   /** Enqueues a static source scan and always removes its temporary upload directory. */
   public async createSourceScan(uploadDirectory: string): Promise<ScanRecord> {
-    return this.createQueuedScan("source", "Uploaded source files", "admin", async () => {
+    return this.createQueuedScan("source", "Uploaded source files", async () => {
       try {
         return await this.scannerClient.sourceScan(uploadDirectory);
       } finally {
@@ -77,7 +81,7 @@ export class ScanService {
     const asset = this.repository.getAsset(assetId);
     if (!asset) throw new NotFoundError("Asset not found");
     if (!asset.isVerified) throw new ForbiddenError("Verify this asset before importing endpoint artifacts");
-    return this.createQueuedScan("discovery", asset.origin, "admin", async () => {
+    return this.createQueuedScan("discovery", asset.origin, async () => {
       try {
         return await this.scannerClient.discoveryScan(uploadDirectory, asset.origin);
       } finally {
@@ -86,17 +90,16 @@ export class ScanService {
     });
   }
 
-  /** Retrieves a report while enforcing its public or administrator scope. */
-  public getScan(scanId: string, isAuthenticated: boolean): ScanRecord {
+  /** Retrieves a report for the operator of this loopback-only tool. */
+  public getScan(scanId: string): ScanRecord {
     const scan = this.repository.getScan(scanId);
     if (!scan) throw new NotFoundError("Scan report not found");
-    if (scan.ownerScope === "admin" && !isAuthenticated) throw new ForbiddenError();
     return scan;
   }
 
   /** Returns only a completed discovery inventory for dashboard suggestions. */
   public getDiscoveryInventory(scanId: string): ScanRecord["endpoints"] {
-    const scan = this.getScan(scanId, true);
+    const scan = this.getScan(scanId);
     if (scan.kind !== "discovery" || scan.status !== "done") {
       throw new ValidationError("Select a completed discovery report");
     }
@@ -110,8 +113,8 @@ export class ScanService {
 
   /** Correlates route-aware static evidence with runtime evidence without claiming confirmation. */
   public async createCorrelationScan(sourceScanId: string, dynamicScanId: string): Promise<ScanRecord> {
-    const source = this.getScan(sourceScanId, true);
-    const dynamic = this.getScan(dynamicScanId, true);
+    const source = this.getScan(sourceScanId);
+    const dynamic = this.getScan(dynamicScanId);
     if (source.kind !== "source" || source.status !== "done") {
       throw new ValidationError("Select a completed source scan");
     }
@@ -120,7 +123,7 @@ export class ScanService {
     }
     const expiresAt = new Date(Date.now() + this.reportTtlHours * 60 * 60 * 1000).toISOString();
     const scan = await this.repository.createScan({
-      kind: "correlation", target: dynamic.target, ownerScope: "admin", expiresAt,
+      kind: "correlation", target: dynamic.target, expiresAt,
     });
     return this.repository.updateScan(scan.id, {
       status: "done",
@@ -133,14 +136,12 @@ export class ScanService {
     });
   }
 
-  /** Runs one explicitly confirmed create-and-cleanup check against a verified local asset. */
+  /** Runs one explicitly confirmed create-and-cleanup check against an eligible test asset. */
   public async createMutationScan(input: MutationScanInput): Promise<ScanRecord> {
     const asset = this.repository.getAsset(input.assetId);
     if (!asset) throw new NotFoundError("Asset not found");
-    if (!asset.isVerified || !isConfiguredLocalTarget(new URL(asset.origin), this.targetPolicy)) {
-      throw new ForbiddenError("Mutation scans are restricted to verified, allowlisted local assets");
-    }
-    if (input.confirmation !== "MUTATE TEST RESOURCE") {
+    const targetAuthorization = requireMutationTargetAuthorization(asset, this.targetPolicy);
+    if (input.confirmation !== getMutationConfirmation(targetAuthorization.mode)) {
       throw new ValidationError("Type the exact mutation confirmation phrase");
     }
     const [mutationPath] = parseRelativePaths(input.path, 1);
@@ -160,40 +161,39 @@ export class ScanService {
     if (Buffer.byteLength(JSON.stringify(body), "utf8") > 4096) {
       throw new ValidationError("Mutation body is too large");
     }
-    return this.createQueuedScan("mutation", asset.origin, "admin", () => this.scannerClient.mutationScan({
+    return this.createQueuedScan("mutation", asset.origin, () => this.scannerClient.mutationScan({
       target: asset.origin,
       path: mutationPath,
       body: body as Record<string, unknown>,
       identity: input.identity,
+      targetAuthorization,
     }));
   }
 
-  /** Runs an explicitly confirmed multi-step workflow against a disposable local namespace. */
+  /** Runs an explicitly confirmed multi-step workflow against an eligible disposable namespace. */
   public async createWorkflowScan(input: WorkflowScanInput): Promise<ScanRecord> {
     const asset = this.repository.getAsset(input.assetId);
     if (!asset) throw new NotFoundError("Asset not found");
-    if (!asset.isVerified || !isConfiguredLocalTarget(new URL(asset.origin), this.targetPolicy)) {
-      throw new ForbiddenError("Workflow scans are restricted to verified, allowlisted local assets");
-    }
-    if (input.confirmation !== "RUN DISPOSABLE WORKFLOW") {
+    const targetAuthorization = requireMutationTargetAuthorization(asset, this.targetPolicy);
+    if (input.confirmation !== getWorkflowConfirmation(targetAuthorization.mode)) {
       throw new ValidationError("Type the exact workflow confirmation phrase");
     }
-    return this.createQueuedScan("workflow", asset.origin, "admin", () => this.scannerClient.workflowScan({
+    return this.createQueuedScan("workflow", asset.origin, () => this.scannerClient.workflowScan({
       target: asset.origin,
       identity: input.identity,
       authentication: input.authentication,
       steps: input.steps,
+      targetAuthorization,
     }));
   }
 
   private async createQueuedScan(
     kind: ScanRecord["kind"],
     target: string,
-    ownerScope: ScanRecord["ownerScope"],
     operation: ScanOperation,
   ): Promise<ScanRecord> {
     const expiresAt = new Date(Date.now() + this.reportTtlHours * 60 * 60 * 1000).toISOString();
-    const scan = await this.repository.createScan({ kind, target, ownerScope, expiresAt });
+    const scan = await this.repository.createScan({ kind, target, expiresAt });
     try {
       this.queue.enqueue({ scanId: scan.id, run: () => this.executeScan(scan.id, operation) });
     } catch (error: unknown) {

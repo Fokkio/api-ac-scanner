@@ -4,14 +4,14 @@
     <div>
       <div class="eyebrow">CREATE + CLEANUP</div>
       <h1>Safe local mutation test</h1>
-      <p>V3.1 only POSTs a marked resource under <code>/__ac_test__/</code>, then DELETEs the same path immediately.</p>
+      <p>V3.2 POSTs a marked resource under <code>/__ac_test__/</code>, then DELETEs the same path immediately.</p>
     </div>
   </section>
-  <section class="warning-card">Use a dedicated disposable local fixture. A failed cleanup is reported prominently but cannot be magically rolled back.</section>
+  <section class="warning-card">Use a disposable local fixture or an explicitly enabled exact HTTPS origin with live ownership proof. A failed cleanup still requires manual investigation.</section>
   <section class="panel">
     <form class="stack-form" action="/scans/mutation" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <label>Verified local asset<select name="assetId" required><option value="">Select local asset</option><% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %></option><% }); %></select></label>
+      <label>Eligible test asset<select name="assetId" required><option value="">Select an asset</option><% assets.forEach(function(asset){ %><option value="<%= asset.id %>"><%= asset.origin %> — <%= ['file','header','dns'].includes(asset.verificationMethod) ? 'verified remote' : 'local' %></option><% }); %></select></label>
       <label>Dedicated test path<input name="mutationPath" required value="/__ac_test__/v3-safe-resource" maxlength="512" /></label>
       <label>JSON body<textarea name="mutationBody" required maxlength="4096" rows="5">{"apiAcScannerTest":true,"value":"temporary"}</textarea></label>
       <div class="two-column">
@@ -22,7 +22,8 @@
         <label>API-key header<input name="identityHeaderName" placeholder="x-api-key" /></label>
         <label>Credential<textarea name="identityCredential" required maxlength="8192" autocomplete="off"></textarea></label>
       </div>
-      <label>Confirmation<input name="confirmation" required placeholder="MUTATE TEST RESOURCE" autocomplete="off" /></label>
+      <label>Confirmation<input name="confirmation" required placeholder="Type the exact phrase for the selected target" autocomplete="off" /></label>
+      <p class="muted">Local: <code>MUTATE TEST RESOURCE</code><br />Verified remote: <code>MUTATE VERIFIED REMOTE TEST RESOURCE</code></p>
       <button type="submit">Create test resource and clean it up</button>
     </form>
   </section>

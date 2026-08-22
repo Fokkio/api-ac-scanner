@@ -6,6 +6,7 @@ import type { AppConfig } from "./config/appConfig";
 import { FORM_BODY_LIMIT_BYTES } from "./config/requestLimits";
 import { registerRoutes } from "./controllers/registerRoutes";
 import { assignRequestId, errorHandler } from "./middlewares/errorHandler";
+import { requireLoopbackHost, requireSameOriginBrowserMutation } from "./middlewares/sameOrigin";
 import type { BoundedScanQueue } from "./queue/BoundedScanQueue";
 import type { AssetService } from "./services/AssetService";
 import type { ScanService } from "./services/ScanService";
@@ -21,12 +22,13 @@ export interface AppDependencies {
 /** Creates the Express application with security middleware and routes. */
 export function createApp(dependencies: AppDependencies): express.Express {
   const app = express();
-  if (dependencies.config.isProduction) app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.set("view engine", "ejs");
   app.set("views", path.resolve(process.cwd(), "views"));
 
   app.use(assignRequestId);
+  app.use(requireLoopbackHost);
+  app.use(requireSameOriginBrowserMutation);
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -37,21 +39,21 @@ export function createApp(dependencies: AppDependencies): express.Express {
         connectSrc: ["'self'"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
-        upgradeInsecureRequests: dependencies.config.sessionCookieSecure ? [] : null,
+        upgradeInsecureRequests: null,
       },
     },
   }));
   app.use(express.urlencoded({ extended: false, limit: FORM_BODY_LIMIT_BYTES }));
   app.use(express.json({ limit: FORM_BODY_LIMIT_BYTES }));
   app.use(session({
-    name: "acsv31.sid",
+    name: "acsv32.sid",
     secret: dependencies.config.sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: new BoundedMemoryStore(dependencies.config.maxSessions, 8 * 60 * 60 * 1000),
     cookie: {
       httpOnly: true,
-      secure: dependencies.config.sessionCookieSecure,
+      secure: false,
       sameSite: "strict",
       maxAge: 8 * 60 * 60 * 1000,
     },

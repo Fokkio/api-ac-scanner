@@ -25,8 +25,9 @@ from app.source_scan import run_source_scan
 from app.verification import verify_asset_control
 from app.mutation_engine import run_mutation_scan
 from app.workflow_engine import run_workflow_scan
+from app.remote_authorization import MutationTargetAuthorization
 
-app = FastAPI(title="API Access-Control Scanner V3.1", version="3.1.0", docs_url=None, redoc_url=None)
+app = FastAPI(title="API Access-Control Scanner V3.2", version="3.2.0", docs_url=None, redoc_url=None)
 INTERNAL_TOKEN = os.environ.get("SCANNER_INTERNAL_TOKEN", "")
 if len(INTERNAL_TOKEN) < 16:
     raise RuntimeError("SCANNER_INTERNAL_TOKEN must contain at least 16 characters")
@@ -124,7 +125,7 @@ async def verify_asset(request: AssetVerificationRequest) -> dict[str, bool]:
 
 @app.post("/v3/scans/mutation", dependencies=[Depends(require_internal_token)])
 async def mutation_scan(request: MutationScanRequest) -> dict:
-    """Runs one guarded local create-and-cleanup test."""
+    """Runs one guarded local or verified-remote create-and-cleanup test."""
 
     identity = TestIdentity(
         label=request.identity.label,
@@ -132,14 +133,19 @@ async def mutation_scan(request: MutationScanRequest) -> dict:
         tenant=request.identity.tenant,
         headers={name: value.get_secret_value() for name, value in request.identity.headers.items()},
     )
+    target_authorization = MutationTargetAuthorization(
+        mode=request.target_authorization.mode,
+        challenge=request.target_authorization.challenge,
+        verification_method=request.target_authorization.verification_method,
+    )
     return await _map_scan_errors(run_mutation_scan(
-        request.target, request.path, request.body, identity,
+        request.target, request.path, request.body, identity, target_authorization,
     ))
 
 
 @app.post("/v3/scans/workflow", dependencies=[Depends(require_internal_token)])
 async def workflow_scan(request: WorkflowScanRequest) -> dict:
-    """Runs a guarded local multi-step workflow with ephemeral authentication."""
+    """Runs a guarded local or verified-remote workflow with ephemeral authentication."""
 
     identity = TestIdentity(
         label=request.identity.label,
@@ -152,8 +158,13 @@ async def workflow_scan(request: WorkflowScanRequest) -> dict:
         secret = getattr(request.authentication, secret_name)
         authentication[secret_name] = secret.get_secret_value() if secret is not None else None
     steps = [step.model_dump() for step in request.steps]
+    target_authorization = MutationTargetAuthorization(
+        mode=request.target_authorization.mode,
+        challenge=request.target_authorization.challenge,
+        verification_method=request.target_authorization.verification_method,
+    )
     return await _map_scan_errors(run_workflow_scan(
-        request.target, identity, authentication, steps,
+        request.target, identity, authentication, steps, target_authorization,
     ))
 
 

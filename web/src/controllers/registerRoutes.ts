@@ -1,28 +1,22 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { AppConfig } from "../config/appConfig";
-import { AuthenticationError, ValidationError } from "../errors/AppError";
-import { areCredentialsValid } from "../security/credentialPolicy";
+import { ValidationError } from "../errors/AppError";
 import { asyncHandler } from "../middlewares/asyncHandler";
-import { requireAuthentication } from "../middlewares/auth";
 import { getCsrfToken, requireCsrf } from "../middlewares/csrf";
-import {
-  createDiscoveryUploadHandler,
-  createSourceUploadHandler,
-  createUploadDirectory,
-  removeUploadDirectory,
-} from "../middlewares/upload";
 import type { AssetService } from "../services/AssetService";
 import type { ScanService } from "../services/ScanService";
 import type { BoundedScanQueue } from "../queue/BoundedScanQueue";
 import type { EndpointRecord } from "../types/domain";
 import { parseIdentityProfile } from "../security/identityPolicy";
 import { parseAuthorizationPolicy } from "../security/authorizationPolicy";
+import { getMutationTargetAuthorization } from "../security/mutationTargetPolicy";
 import { isConfiguredLocalTarget } from "../security/inputPolicy";
 import { parseAuthenticationAdapter, parseWorkflowSteps } from "../security/workflowPolicy";
 import { buildPdfReport, buildStandaloneHtmlReport } from "../services/ReportExportService";
+import { registerDiscoveryRoutes, registerSourceScanRoutes } from "./registerUploadRoutes";
 
-interface RouteDependencies {
+export interface RouteDependencies {
   config: AppConfig;
   scanService: ScanService;
   assetService: AssetService;
@@ -30,16 +24,14 @@ interface RouteDependencies {
 }
 
 const quickScanLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
-const loginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: true, legacyHeaders: false });
 
-/** Registers all HTML and JSON routes for the V3.1 local-first application. */
+/** Registers all HTML and JSON routes for the V3.2 local-first application. */
 export function registerRoutes(app: Express, dependencies: RouteDependencies): void {
-  registerPublicRoutes(app, dependencies);
-  registerAuthenticationRoutes(app, dependencies.config);
-  registerAdministratorRoutes(app, dependencies);
+  registerLandingAndReportRoutes(app, dependencies);
+  registerWorkspaceRoutes(app, dependencies);
 }
 
-function registerPublicRoutes(app: Express, dependencies: RouteDependencies): void {
+function registerLandingAndReportRoutes(app: Express, dependencies: RouteDependencies): void {
   app.get("/", (request, response) => {
     response.render("index", { csrfToken: getCsrfToken(request) });
   });
@@ -53,33 +45,35 @@ function registerPublicRoutes(app: Express, dependencies: RouteDependencies): vo
   }));
 
   app.get("/reports/:scanId", asyncHandler(async (request, response) => {
-    const scan = dependencies.scanService.getScan(request.params.scanId ?? "", request.session.isAuthenticated === true);
+    const scan = dependencies.scanService.getScan(request.params.scanId ?? "");
     response.render("report", { scan });
   }));
 
   app.get("/api/scans/:scanId", asyncHandler(async (request, response) => {
-    const scan = dependencies.scanService.getScan(request.params.scanId ?? "", request.session.isAuthenticated === true);
+    const scan = dependencies.scanService.getScan(request.params.scanId ?? "");
     response.json({ success: true, scan });
   }));
 
+  registerReportExportRoutes(app, dependencies);
+  app.get("/health", (_request, response) => {
+    response.json({ status: "ok", queue: dependencies.scanQueue.getStats() });
+  });
+}
+
+function registerReportExportRoutes(app: Express, dependencies: RouteDependencies): void {
   app.get("/reports/:scanId/export.html", asyncHandler(async (request, response) => {
-    const scan = dependencies.scanService.getScan(request.params.scanId ?? "", request.session.isAuthenticated === true);
+    const scan = dependencies.scanService.getScan(request.params.scanId ?? "");
     requireExportableReport(scan.status);
     response.setHeader("cache-control", "no-store");
     response.attachment(`api-ac-report-${scan.id}.html`).type("html").send(buildStandaloneHtmlReport(scan));
   }));
-
   app.get("/reports/:scanId/export.pdf", asyncHandler(async (request, response) => {
-    const scan = dependencies.scanService.getScan(request.params.scanId ?? "", request.session.isAuthenticated === true);
+    const scan = dependencies.scanService.getScan(request.params.scanId ?? "");
     requireExportableReport(scan.status);
     const pdf = await buildPdfReport(scan);
     response.setHeader("cache-control", "no-store");
     response.attachment(`api-ac-report-${scan.id}.pdf`).type("application/pdf").send(pdf);
   }));
-
-  app.get("/health", (_request, response) => {
-    response.json({ status: "ok", queue: dependencies.scanQueue.getStats() });
-  });
 }
 
 function requireExportableReport(status: string): void {
@@ -88,41 +82,21 @@ function requireExportableReport(status: string): void {
   }
 }
 
-function registerAuthenticationRoutes(app: Express, config: AppConfig): void {
-  app.get("/login", (request, response) => {
-    response.render("login", { csrfToken: getCsrfToken(request) });
-  });
-
-  app.post("/login", loginLimiter, requireCsrf, asyncHandler(async (request, response) => {
-    const isValid = areCredentialsValid(
-      request.body.username,
-      request.body.password,
-      config.adminUsername,
-      config.adminPassword,
-    );
-    if (!isValid) throw new AuthenticationError("Invalid username or password");
-    await regenerateSession(request);
-    request.session.isAuthenticated = true;
-    getCsrfToken(request);
-    response.redirect("/dashboard");
-  }));
-
-  app.post("/logout", requireAuthentication, requireCsrf, asyncHandler(async (request, response) => {
-    await destroySession(request);
-    response.redirect("/");
-  }));
-}
-
-function registerAdministratorRoutes(app: Express, dependencies: RouteDependencies): void {
-  app.get("/dashboard", requireAuthentication, (request, response) => {
+function registerWorkspaceRoutes(app: Express, dependencies: RouteDependencies): void {
+  app.get("/dashboard", (request, response) => {
     const inventoryId = typeof request.query.inventory === "string" ? request.query.inventory : undefined;
     const inventory = inventoryId
       ? dependencies.scanService.getDiscoveryInventory(inventoryId)
       : [];
     const suggestions = buildInventorySuggestions(inventory);
+    const assets = dependencies.assetService.listAssets();
+    const localAssetIds = assets
+      .filter((asset) => isConfiguredLocalTarget(new URL(asset.origin), dependencies.config.targetPolicy))
+      .map((asset) => asset.id);
     response.render("dashboard", {
       csrfToken: getCsrfToken(request),
-      assets: dependencies.assetService.listAssets(),
+      assets,
+      localAssetIds,
       localMode: dependencies.config.targetPolicy.localMode,
       inventory,
       ...suggestions,
@@ -157,12 +131,12 @@ function buildInventorySuggestions(endpoints: EndpointRecord[]): {
 }
 
 function registerAssetRoutes(app: Express, dependencies: RouteDependencies): void {
-  app.post("/assets", requireAuthentication, requireCsrf, asyncHandler(async (request, response) => {
+  app.post("/assets", requireCsrf, asyncHandler(async (request, response) => {
     await dependencies.assetService.createAsset(request.body.origin);
     response.redirect("/dashboard");
   }));
 
-  app.post("/assets/:assetId/verify", requireAuthentication, requireCsrf, asyncHandler(async (request, response) => {
+  app.post("/assets/:assetId/verify", requireCsrf, asyncHandler(async (request, response) => {
     await dependencies.assetService.verifyAsset(
       request.params.assetId ?? "",
       readBodyString(request, "verificationMethod"),
@@ -171,40 +145,8 @@ function registerAssetRoutes(app: Express, dependencies: RouteDependencies): voi
   }));
 }
 
-function registerDiscoveryRoutes(app: Express, dependencies: RouteDependencies): void {
-  const uploadHandler = createDiscoveryUploadHandler();
-  app.get("/discovery", requireAuthentication, (request, response) => {
-    response.render("discovery", {
-      csrfToken: getCsrfToken(request),
-      assets: dependencies.assetService.listAssets().filter((asset) => asset.isVerified),
-    });
-  });
-  app.post(
-    "/scans/discovery",
-    requireAuthentication,
-    createUploadDirectory(dependencies.config.uploadRoot),
-    uploadHandler,
-    requireCsrf,
-    asyncHandler(async (request, response) => {
-      const uploadedFiles = Array.isArray(request.files) ? request.files : [];
-      if (!request.uploadDirectory || uploadedFiles.length === 0) {
-        await removeUploadDirectory(request.uploadDirectory);
-        throw new ValidationError("Select at least one discovery artifact");
-      }
-      try {
-        const assetId = readBodyString(request, "assetId");
-        const scan = await dependencies.scanService.createDiscoveryScan(assetId, request.uploadDirectory);
-        response.redirect(`/reports/${scan.id}`);
-      } catch (error: unknown) {
-        await removeUploadDirectory(request.uploadDirectory);
-        throw error;
-      }
-    }),
-  );
-}
-
 function registerDeepScanRoute(app: Express, dependencies: RouteDependencies): void {
-  app.post("/scans/deep", requireAuthentication, requireCsrf, asyncHandler(async (request, response) => {
+  app.post("/scans/deep", requireCsrf, asyncHandler(async (request, response) => {
     const identities = [
       parseIdentityProfile({
         label: request.body.primaryLabel, role: request.body.primaryRole,
@@ -230,43 +172,15 @@ function registerDeepScanRoute(app: Express, dependencies: RouteDependencies): v
   }));
 }
 
-function registerSourceScanRoutes(app: Express, dependencies: RouteDependencies): void {
-  const uploadHandler = createSourceUploadHandler();
-  app.get("/source", requireAuthentication, (request, response) => {
-    response.render("source", { csrfToken: getCsrfToken(request) });
-  });
-  app.post(
-    "/scans/source",
-    requireAuthentication,
-    createUploadDirectory(dependencies.config.uploadRoot),
-    uploadHandler,
-    requireCsrf,
-    asyncHandler(async (request, response) => {
-      const uploadedFiles = Array.isArray(request.files) ? request.files : [];
-      if (!request.uploadDirectory || uploadedFiles.length === 0) {
-        await removeUploadDirectory(request.uploadDirectory);
-        throw new ValidationError("Select at least one supported source file");
-      }
-      try {
-        const scan = await dependencies.scanService.createSourceScan(request.uploadDirectory);
-        response.redirect(`/reports/${scan.id}`);
-      } catch (error: unknown) {
-        await removeUploadDirectory(request.uploadDirectory);
-        throw error;
-      }
-    }),
-  );
-}
-
 function registerCorrelationRoutes(app: Express, dependencies: RouteDependencies): void {
-  app.get("/correlation", requireAuthentication, (request, response) => {
+  app.get("/correlation", (request, response) => {
     response.render("correlation", {
       csrfToken: getCsrfToken(request),
       sourceScans: dependencies.scanService.listCompletedScans("source"),
       dynamicScans: dependencies.scanService.listCompletedScans("deep"),
     });
   });
-  app.post("/scans/correlation", requireAuthentication, requireCsrf, asyncHandler(async (request, response) => {
+  app.post("/scans/correlation", requireCsrf, asyncHandler(async (request, response) => {
     const scan = await dependencies.scanService.createCorrelationScan(
       readBodyString(request, "sourceScanId"),
       readBodyString(request, "dynamicScanId"),
@@ -276,12 +190,12 @@ function registerCorrelationRoutes(app: Express, dependencies: RouteDependencies
 }
 
 function registerMutationRoutes(app: Express, dependencies: RouteDependencies): void {
-  app.get("/mutation", requireAuthentication, (request, response) => {
+  app.get("/mutation", (request, response) => {
     const assets = dependencies.assetService.listAssets().filter((asset) =>
-      asset.isVerified && isConfiguredLocalTarget(new URL(asset.origin), dependencies.config.targetPolicy));
+      getMutationTargetAuthorization(asset, dependencies.config.targetPolicy) !== undefined);
     response.render("mutation", { csrfToken: getCsrfToken(request), assets });
   });
-  app.post("/scans/mutation", requireAuthentication, requireCsrf, asyncHandler(async (request, response) => {
+  app.post("/scans/mutation", requireCsrf, asyncHandler(async (request, response) => {
     const identity = parseIdentityProfile({
       label: request.body.identityLabel,
       role: request.body.identityRole,
@@ -302,12 +216,12 @@ function registerMutationRoutes(app: Express, dependencies: RouteDependencies): 
 }
 
 function registerWorkflowRoutes(app: Express, dependencies: RouteDependencies): void {
-  app.get("/workflow", requireAuthentication, (request, response) => {
+  app.get("/workflow", (request, response) => {
     const assets = dependencies.assetService.listAssets().filter((asset) =>
-      asset.isVerified && isConfiguredLocalTarget(new URL(asset.origin), dependencies.config.targetPolicy));
+      getMutationTargetAuthorization(asset, dependencies.config.targetPolicy) !== undefined);
     response.render("workflow", { csrfToken: getCsrfToken(request), assets });
   });
-  app.post("/scans/workflow", requireAuthentication, requireCsrf, asyncHandler(async (request, response) => {
+  app.post("/scans/workflow", requireCsrf, asyncHandler(async (request, response) => {
     const authentication = parseAuthenticationAdapter(request.body.authenticationAdapter);
     const identity = parseIdentityProfile({
       label: request.body.identityLabel,
@@ -332,16 +246,4 @@ function readBodyString(request: Request, fieldName: string): string {
   const value: unknown = request.body[fieldName];
   if (typeof value !== "string") throw new ValidationError(`${fieldName} is required`);
   return value;
-}
-
-function regenerateSession(request: Request): Promise<void> {
-  return new Promise((resolve, reject) => {
-    request.session.regenerate((error) => error ? reject(error) : resolve());
-  });
-}
-
-function destroySession(request: Request): Promise<void> {
-  return new Promise((resolve, reject) => {
-    request.session.destroy((error) => error ? reject(error) : resolve());
-  });
 }

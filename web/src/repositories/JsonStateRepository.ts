@@ -2,14 +2,21 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { NotFoundError } from "../errors/AppError";
-import type { AssetRecord, PersistedState, ScanKind, ScanRecord } from "../types/domain";
+import type { AssetRecord, AssetVerificationMethod, PersistedState, ScanKind, ScanRecord } from "../types/domain";
 
-const EMPTY_STATE: PersistedState = { version: 1, scans: [], assets: [] };
+const CURRENT_STATE_VERSION = 2;
+const EMPTY_STATE: PersistedState = { version: CURRENT_STATE_VERSION, scans: [], assets: [] };
+
+interface StateLoadResult {
+  state: PersistedState;
+  requiresPersistence: boolean;
+}
+
+type LegacyScanRecord = ScanRecord & { ownerScope?: unknown };
 
 export interface CreateScanInput {
   kind: ScanKind;
   target: string;
-  ownerScope: "public" | "admin";
   expiresAt: string;
 }
 
@@ -27,28 +34,37 @@ export class JsonStateRepository {
   public static async create(dataDirectory: string, maxStoredReports: number): Promise<JsonStateRepository> {
     await fs.mkdir(dataDirectory, { recursive: true });
     const stateFile = path.join(dataDirectory, "state.json");
-    const state = await JsonStateRepository.readState(stateFile);
+    const { state, requiresPersistence } = await JsonStateRepository.readState(stateFile);
     const repository = new JsonStateRepository(stateFile, maxStoredReports, state);
     await repository.recoverInterruptedScans();
+    if (requiresPersistence) await repository.persist();
     return repository;
   }
 
-  private static async readState(stateFile: string): Promise<PersistedState> {
+  private static async readState(stateFile: string): Promise<StateLoadResult> {
     try {
-      const parsedState = JSON.parse(await fs.readFile(stateFile, "utf8")) as PersistedState;
-      if (parsedState.version !== 1 || !Array.isArray(parsedState.scans) || !Array.isArray(parsedState.assets)) {
+      const parsedState = JSON.parse(await fs.readFile(stateFile, "utf8")) as Omit<PersistedState, "version" | "scans"> & {
+        version: number;
+        scans: LegacyScanRecord[];
+      };
+      if (![1, CURRENT_STATE_VERSION].includes(parsedState.version)
+        || !Array.isArray(parsedState.scans)
+        || !Array.isArray(parsedState.assets)) {
         throw new Error("Unsupported state file schema");
       }
+      const containsLegacyScope = parsedState.scans.some((scan) => Object.hasOwn(scan, "ownerScope"));
       return {
-        ...parsedState,
-        scans: parsedState.scans.map((scan) => ({
-          ...scan,
-          endpoints: Array.isArray(scan.endpoints) ? scan.endpoints : [],
-          matrix: Array.isArray(scan.matrix) ? scan.matrix : [],
-        })),
+        state: {
+          ...parsedState,
+          version: CURRENT_STATE_VERSION,
+          scans: parsedState.scans.map(normalizePersistedScan),
+        },
+        requiresPersistence: parsedState.version !== CURRENT_STATE_VERSION || containsLegacyScope,
       };
     } catch (error: unknown) {
-      if (isMissingFileError(error)) return structuredClone(EMPTY_STATE);
+      if (isMissingFileError(error)) {
+        return { state: structuredClone(EMPTY_STATE), requiresPersistence: false };
+      }
       throw error;
     }
   }
@@ -61,7 +77,6 @@ export class JsonStateRepository {
         id: crypto.randomBytes(24).toString("hex"),
         kind: input.kind,
         target: input.target,
-        ownerScope: input.ownerScope,
         status: "queued",
         progress: 0,
         stage: "Queued",
@@ -105,7 +120,7 @@ export class JsonStateRepository {
     return scan ? structuredClone(scan) : undefined;
   }
 
-  /** Returns cloned scan summaries for authenticated local workflows. */
+  /** Returns cloned scan summaries for local workflows. */
   public listScans(): ScanRecord[] {
     return structuredClone(this.state.scans);
   }
@@ -139,8 +154,8 @@ export class JsonStateRepository {
     return asset ? structuredClone(asset) : undefined;
   }
 
-  /** Marks an asset challenge as verified. */
-  public async markAssetVerified(assetId: string): Promise<AssetRecord> {
+  /** Marks an asset challenge as verified and records how control was proven. */
+  public async markAssetVerified(assetId: string, verificationMethod: AssetVerificationMethod): Promise<AssetRecord> {
     return this.mutate(async () => {
       const index = this.state.assets.findIndex((asset) => asset.id === assetId);
       const existingAsset = this.state.assets[index];
@@ -148,6 +163,7 @@ export class JsonStateRepository {
       const verifiedAsset: AssetRecord = {
         ...existingAsset,
         isVerified: true,
+        verificationMethod,
         verifiedAt: new Date().toISOString(),
       };
       this.state.assets[index] = verifiedAsset;
@@ -181,8 +197,16 @@ export class JsonStateRepository {
 
   private async persist(): Promise<void> {
     const temporaryFile = `${this.stateFile}.${crypto.randomBytes(6).toString("hex")}.tmp`;
-    await fs.writeFile(temporaryFile, JSON.stringify(this.state, null, 2), { encoding: "utf8", mode: 0o600 });
-    await fs.rename(temporaryFile, this.stateFile);
+    try {
+      await fs.writeFile(temporaryFile, JSON.stringify(this.state, null, 2), { encoding: "utf8", mode: 0o600 });
+      await fs.rename(temporaryFile, this.stateFile);
+    } finally {
+      try {
+        await fs.rm(temporaryFile, { force: true });
+      } catch (cleanupError: unknown) {
+        console.error("Failed to remove a temporary state file", { temporaryFile, cleanupError });
+      }
+    }
   }
 
   private async mutate<Result>(operation: () => Promise<Result>): Promise<Result> {
@@ -194,4 +218,14 @@ export class JsonStateRepository {
 
 function isMissingFileError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+function normalizePersistedScan(scan: LegacyScanRecord): ScanRecord {
+  const normalizedScan = {
+    ...scan,
+    endpoints: Array.isArray(scan.endpoints) ? scan.endpoints : [],
+    matrix: Array.isArray(scan.matrix) ? scan.matrix : [],
+  };
+  Reflect.deleteProperty(normalizedScan, "ownerScope");
+  return normalizedScan;
 }

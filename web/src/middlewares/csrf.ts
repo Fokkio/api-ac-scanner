@@ -14,13 +14,22 @@ export function getCsrfToken(request: Request): string {
 
 /** Rejects state-changing requests whose CSRF token does not match the session. */
 export function requireCsrf(request: Request, _response: Response, next: NextFunction): void {
-  const suppliedToken = extractCsrfToken(request);
-  const expectedToken = request.session.csrfToken;
-  if (!suppliedToken || !expectedToken || !crypto.timingSafeEqual(digest(suppliedToken), digest(expectedToken))) {
+  if (!hasValidCsrfToken(request)) {
     next(new ForbiddenError("Invalid or expired request token"));
     return;
   }
   next();
+}
+
+/** Returns whether the supplied header or parsed form token matches the current session. */
+export function hasValidCsrfToken(request: Request): boolean {
+  const suppliedToken = extractCsrfToken(request);
+  const expectedToken = request.session.csrfToken;
+  return Boolean(
+    suppliedToken
+    && expectedToken
+    && crypto.timingSafeEqual(digest(suppliedToken), digest(expectedToken)),
+  );
 }
 
 function extractCsrfToken(request: Request): string | undefined {

@@ -78,7 +78,7 @@ class BoundedHttpClient:
             connector=connector,
             timeout=timeout,
             trust_env=False,
-            headers={"user-agent": "API-AC-Scanner-V3.1/3.1"},
+            headers={"user-agent": "API-AC-Scanner-V3.2/3.2"},
         )
         return cls(target, session, request_limit)
 

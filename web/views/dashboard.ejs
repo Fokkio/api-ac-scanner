@@ -1,4 +1,4 @@
-<%- include('partials/header', { title: 'Owner workspace' }) %>
+<%- include('partials/header', { title: 'Authorization workspace' }) %>
 <main id="main-content" class="workspace">
   <header class="page-heading">
     <div>
@@ -6,10 +6,6 @@
       <h1>Authorization workspace</h1>
       <p><%= localMode ? 'Local mode is enabled. Allowlisted local hosts are trusted automatically.' : 'Public assets require exact-origin verification.' %></p>
     </div>
-    <form action="/logout" method="post">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <button class="secondary-button" type="submit">Sign out</button>
-    </form>
   </header>
 
   <section class="panel">
@@ -33,15 +29,19 @@
             <%= asset.isVerified ? 'Verified' : 'Pending verification' %>
           </span>
           <h3><%= asset.origin %></h3>
-          <% if (!asset.isVerified) { %>
-            <p>Choose one exact-origin verification method:</p>
+          <% const isLocalAsset = localAssetIds.includes(asset.id); %>
+          <% if (asset.verificationMethod || isLocalAsset) { %>
+            <p class="muted">Verification method: <code><%= isLocalAsset ? 'local-allowlist' : asset.verificationMethod %></code></p>
+          <% } %>
+          <% if (!isLocalAsset) { %>
+            <p><%= asset.isVerified ? 'Keep one exact-origin proof live for remote state-changing scans:' : 'Choose one exact-origin verification method:' %></p>
             <code><%= asset.origin %>/.well-known/api-ac-scanner-verification.txt</code>
             <code>api-ac-scanner-v2.6-verification=<%= asset.challenge %></code>
             <code>Header: X-API-AC-Scanner-Verification: <%= asset.challenge %></code>
             <code>DNS TXT: _api-ac-scanner.<%= new URL(asset.origin).hostname %> = <%= asset.challenge %></code>
           <% } %>
         </div>
-        <% if (!asset.isVerified) { %>
+        <% if (!isLocalAsset) { %>
           <form action="/assets/<%= asset.id %>/verify" method="post">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
             <select name="verificationMethod" aria-label="Verification method">
@@ -49,7 +49,7 @@
               <option value="header">HTTP header</option>
               <option value="dns">DNS TXT</option>
             </select>
-            <button class="secondary-button" type="submit">Verify now</button>
+            <button class="secondary-button" type="submit"><%= asset.isVerified ? 'Re-verify now' : 'Verify now' %></button>
           </form>
         <% } %>
       </article>

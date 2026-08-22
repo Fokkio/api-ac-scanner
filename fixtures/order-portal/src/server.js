@@ -254,7 +254,7 @@ function renderLanding() {
       <div>
         <span class="role">Disposable local fixture</span>
         <h1>Order Approval Portal</h1>
-        <p>A database-backed, multi-role application created to verify API AC Scanner V3.1 safely.</p>
+        <p>A database-backed, multi-role application created to verify API AC Scanner V3.2 safely.</p>
         <div class="accounts">
           <div class="account"><strong>Alice</strong> — owner of order #1</div>
           <div class="account"><strong>Bob</strong> — viewer without access to Alice's order</div>

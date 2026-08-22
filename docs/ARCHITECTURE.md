@@ -5,7 +5,8 @@ Browser (127.0.0.1:3000)
         |
         v
 Express / TypeScript web
-  - local admin session + CSRF
+  - no login; loopback operator trust boundary
+  - session-backed CSRF
   - asset and report state (atomic JSON)
   - bounded in-process queue
   - endpoint inventory and identity-profile input
@@ -20,14 +21,15 @@ FastAPI scanner (not published)
   - explicit-policy mismatch verification
   - Semgrep source rules and source/runtime correlation
   - guarded POST then DELETE mutation test
-  - guarded multi-step workflow + reverse cleanup
+  - guarded local or verified-remote workflow + reverse cleanup
   - ephemeral same-origin JSON-login adapter
         |
         +--> allowlisted local API
+        +--> verified-remote exact HTTPS origin (explicit feature flag + allowlist + live proof)
         +--> exact verified public origin
 ```
 
-Browser ไม่เรียก scanner โดยตรง Web ตรวจ input, session, CSRF, queue capacity และ report scope ก่อน ส่วน scanner ตรวจ URL และ path ซ้ำอีกครั้งเพราะถือเป็น trust boundary แยกกัน
+Browser ไม่เรียก scanner โดยตรง Web ตรวจ input, CSRF, queue capacity และ report scope ก่อน ส่วน scanner ตรวจ URL และ path ซ้ำอีกครั้งเพราะถือเป็น trust boundary แยกกัน Web ไม่มี authentication gate และต้องเข้าถึงผ่าน Compose port ที่ bind เฉพาะ `127.0.0.1`
 
 ## Authorization matrix
 
@@ -45,9 +47,9 @@ Token อยู่ใน closure ของ queued job และส่งตร�
 
 ## Guarded workflow boundary
 
-Workflow ใช้ได้เฉพาะ asset ที่ผ่าน verification, อยู่ใน exact local allowlist และ path ใต้ `/__ac_test__/` เท่านั้น Web และ scanner ตรวจเงื่อนไขซ้ำคนละ trust boundary ทุก POST/PUT/PATCH body ต้องมี `apiAcScannerTest: true` และ scanner พยายาม DELETE cleanup ย้อนลำดับใน `finally` หาก step แรกที่ mismatch หรือ indeterminate เกิดขึ้น step ที่เหลือจะไม่ถูกส่งออกและรายงานเป็น `skipped` เพื่อไม่ให้ผลจาก state ที่เสียถูกยกระดับเป็น verified finding
+Workflow ใช้ได้กับ exact local allowlist หรือ exact HTTPS origin ที่เปิด `REMOTE_SAFE_MUTATION_ENABLED`, อยู่ใน `REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS` และผ่าน ownership verification เท่านั้น Web บันทึก verification method และส่ง proof ข้าม internal boundary; Scanner ตรวจ config, exact origin และ challenge ซ้ำผ่าน pinned client ก่อน authentication/mutation ทุก path ต้องอยู่ใต้ `/__ac_test__/` และ POST/PUT/PATCH body ต้องมี `apiAcScannerTest: true` จากนั้น scanner พยายาม DELETE cleanup ย้อนลำดับใน `finally`
 
-JSON-login adapter ยิง POST ได้หนึ่งครั้งไปยัง same-origin relative path ของ verified local asset แล้วดึง token string จาก dotted JSON path ที่กำหนด Token ที่ได้จะแทนที่ base credential headers ทั้งหมด และ workflow identity สามารถเริ่มด้วย headers ว่างได้เมื่อใช้ adapter Token และ test credential อยู่ใน memory เท่านั้น ส่วน report exporter ทำ evidence redaction ซ้ำก่อนสร้าง HTML/PDF
+JSON-login adapter ยิง POST ได้หนึ่งครั้งไปยัง same-origin relative path หลัง target authorization ผ่านแล้ว และดึง token string จาก dotted JSON path ที่กำหนด Token ที่ได้จะแทนที่ base credential headers ทั้งหมดและอยู่ใน memory เท่านั้น ส่วน report exporter ทำ evidence redaction ซ้ำก่อนสร้าง HTML/PDF
 
 ## Discovery and correlation
 
@@ -61,7 +63,7 @@ V3.0 ขึ้นไปต้องมี policy ครบทุก identity ร
 
 ## Guarded mutation
 
-Mutation scan อนุญาตเฉพาะ target local ที่ยืนยันแล้ว, path ใต้ `/__ac_test__/`, JSON ที่มี `apiAcScannerTest: true` และคำยืนยันตรงตัว ระบบทำ POST แล้วพยายาม DELETE path เดิมทันที รวมถึงกรณี POST timeout อย่างไรก็ตาม rollback ไม่สามารถรับประกัน side effect ภายนอกหรือ asynchronous job ที่ target สร้างขึ้นได้
+Mutation scan อนุญาตเฉพาะ verified local target หรือ verified-remote exact HTTPS origin ที่ re-verify สำเร็จ, path ใต้ `/__ac_test__/`, JSON ที่มี `apiAcScannerTest: true` และคำยืนยันตาม target mode ระบบทำ POST แล้วพยายาม DELETE path เดิมทันที รวมถึงกรณี POST timeout อย่างไรก็ตาม rollback ไม่สามารถรับประกัน side effect ภายนอกหรือ asynchronous job ที่ target สร้างขึ้นได้
 
 ## Persistence
 

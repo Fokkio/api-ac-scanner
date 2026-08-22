@@ -28,7 +28,6 @@ export interface ScanRecord {
   id: string;
   kind: ScanKind;
   target: string;
-  ownerScope: "public" | "admin";
   status: ScanStatus;
   progress: number;
   stage: string;
@@ -48,12 +47,24 @@ export interface AssetRecord {
   origin: string;
   challenge: string;
   isVerified: boolean;
+  verificationMethod?: AssetVerificationMethod;
   createdAt: string;
   verifiedAt?: string;
 }
 
+export type ExternalAssetVerificationMethod = "file" | "header" | "dns";
+export type AssetVerificationMethod = ExternalAssetVerificationMethod | "local-allowlist";
+
+export type MutationTargetAuthorization =
+  | { mode: "local" }
+  | {
+    mode: "verified-remote";
+    challenge: string;
+    verificationMethod: ExternalAssetVerificationMethod;
+  };
+
 export interface PersistedState {
-  version: 1;
+  version: 2;
   scans: ScanRecord[];
   assets: AssetRecord[];
 }

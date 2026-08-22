@@ -1,6 +1,6 @@
 {
-  "name": "api-ac-scanner-v3-1-web",
-  "version": "3.1.0",
+  "name": "api-ac-scanner-v3-2-web",
+  "version": "3.2.0",
   "private": true,
   "description": "PageSpeed-style access-control assessment UI and job orchestrator",
   "type": "commonjs",

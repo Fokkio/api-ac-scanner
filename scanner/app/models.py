@@ -68,13 +68,24 @@ class AssetVerificationRequest(BaseModel):
     verification_method: Literal["file", "header", "dns"] = "file"
 
 
+class MutationTargetAuthorizationRequest(BaseModel):
+    """Defense-in-depth proof required for local or verified-remote mutation targets."""
+
+    mode: Literal["local", "verified-remote"] = "local"
+    challenge: str | None = Field(default=None, min_length=24, max_length=128)
+    verification_method: Literal["file", "header", "dns"] | None = None
+
+
 class MutationScanRequest(BaseModel):
-    """Explicit local-only create-and-cleanup mutation request."""
+    """Explicit guarded create-and-cleanup mutation request."""
 
     target: str = Field(min_length=8, max_length=2048)
     path: str = Field(min_length=14, max_length=512)
     body: dict[str, object]
     identity: IdentityProfile
+    target_authorization: MutationTargetAuthorizationRequest = Field(
+        default_factory=MutationTargetAuthorizationRequest,
+    )
 
 
 class AuthenticationAdapterRequest(BaseModel):
@@ -102,9 +113,12 @@ class WorkflowStepRequest(BaseModel):
 
 
 class WorkflowScanRequest(BaseModel):
-    """A guarded multi-step local workflow with mandatory cleanup."""
+    """A guarded local or verified-remote workflow with mandatory cleanup."""
 
     target: str = Field(min_length=8, max_length=2048)
     identity: WorkflowIdentityProfile
     authentication: AuthenticationAdapterRequest = Field(default_factory=AuthenticationAdapterRequest)
     steps: list[WorkflowStepRequest] = Field(min_length=1, max_length=8)
+    target_authorization: MutationTargetAuthorizationRequest = Field(
+        default_factory=MutationTargetAuthorizationRequest,
+    )

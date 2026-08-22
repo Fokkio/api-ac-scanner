@@ -1,4 +1,4 @@
-"""Guarded local multi-step workflow and ephemeral authentication adapters."""
+"""Guarded local or verified-remote workflow and authentication adapters."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from app.workflow_findings import (
     build_step_finding,
 )
 from app.workflow_policy import MUTATING_METHODS, TEST_NAMESPACE, encode_step_body, validate_workflow_steps
+from app.remote_authorization import MutationTargetAuthorization, authorize_state_changing_client
 
 BODY_LIMIT = 16_384
 
@@ -35,20 +36,21 @@ async def run_workflow_scan(
     identity: TestIdentity,
     authentication: dict[str, Any],
     steps: list[dict[str, Any]],
+    target_authorization: MutationTargetAuthorization = MutationTargetAuthorization(),
 ) -> dict[str, list[Any]]:
-    """Runs up to eight explicit local steps and always attempts reverse cleanup."""
+    """Runs up to eight explicit guarded steps and always attempts reverse cleanup."""
 
     if not 1 <= len(steps) <= 8:
         raise PolicyError("Workflow must contain between 1 and 8 steps")
     adapter_type = str(authentication.get("type", "none"))
     headers = validate_identity_headers(identity, allow_empty=adapter_type == "json-login")
     validate_workflow_steps(steps)
-    request_limit = min(18, len(steps) + len({step["path"] for step in steps}) + 1)
+    verification_request_count = 1 if target_authorization.mode == "verified-remote" else 0
+    request_limit = min(19, len(steps) + len({step["path"] for step in steps}) + 1 + verification_request_count)
     state = _WorkflowExecutionState()
 
     async with await BoundedHttpClient.create(target, request_limit=request_limit) as client:
-        if not client.target.is_local:
-            raise PolicyError("Workflow scans are restricted to explicit local targets")
+        target_mode = await authorize_state_changing_client(client, target_authorization)
         headers = await apply_authentication_adapter(client, headers, authentication)
         try:
             await _execute_steps(client, identity, headers, steps, state)
@@ -59,7 +61,8 @@ async def run_workflow_scan(
     return {
         "findings": state.findings,
         "warnings": [
-            "Workflow execution is restricted to a verified allowlisted local asset and the /__ac_test__/ namespace.",
+            f"Workflow target mode: {target_mode}; every request remains inside the /__ac_test__/ namespace.",
+            "Verified-remote mode re-checks exact-origin ownership immediately before authentication or mutation.",
             "Verified means an observed allow/deny result contradicted the explicit expected decision for that step.",
             "Remaining steps are skipped after the first mismatch or indeterminate result because later evidence is unreliable.",
             "Credentials and acquired tokens are used in memory only and are excluded from findings and reports.",

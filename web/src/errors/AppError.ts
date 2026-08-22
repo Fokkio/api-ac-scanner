@@ -15,15 +15,15 @@ export class ValidationError extends AppError {
   }
 }
 
-export class AuthenticationError extends AppError {
-  public constructor(message = "Authentication required") {
-    super("AUTHENTICATION_REQUIRED", message, 401);
-  }
-}
-
 export class ForbiddenError extends AppError {
   public constructor(message = "You are not allowed to perform this action") {
     super("FORBIDDEN", message, 403);
+  }
+}
+
+export class RequestTooLargeError extends AppError {
+  public constructor(message = "The request exceeded the configured size limit") {
+    super("REQUEST_TOO_LARGE", message, 413);
   }
 }
 
