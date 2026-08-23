@@ -20,7 +20,7 @@ class _FakeIdentity:
 
 class MatrixRowTests(unittest.TestCase):
     def _response(self, status=200, body=b"{}"):
-        return BoundedResponse(status=status, headers={}, body=body, duration_ms=1)
+        return BoundedResponse(status=status, headers={}, body=body, is_truncated=False, elapsed_ms=1.0)
 
     def test_reports_passed_method(self):
         # The row must echo the actual request method, not hardcode "GET".
