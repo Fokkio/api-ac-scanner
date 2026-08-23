@@ -1,5 +1,7 @@
 # API Access-Control Scanner V3.2
 
+[![CI](https://github.com/Fokkio/api-ac-scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/Fokkio/api-ac-scanner/actions/workflows/ci.yml)
+
 เครื่องมือ local-first สำหรับช่วยตรวจ Authorization / Access Control ของ API ที่คุณเป็นเจ้าของหรือได้รับอนุญาตให้ทดสอบ โดยเน้น BOLA, BFLA, anonymous access, object-property exposure และ resource/account enumeration
 
 V3.2 เพิ่ม Remote Safe Mutation บน Guarded Workflow เดิม โดย remote target ต้องเป็น exact HTTPS origin ที่ผ่าน ownership verification, เปิด feature flag, อยู่ใน allowlist และ re-verify challenge แบบสดก่อน authentication หรือ mutation ทุกครั้ง เครื่องมือนี้ยังเป็น single-node authorized test tool ไม่ใช่ production SaaS
@@ -9,6 +11,23 @@ Web UI ไม่มีหน้า login และเชื่อถือผู
 คู่มือใช้งานภาษาไทยแบบทีละขั้น: [docs/USER-GUIDE-TH.md](docs/USER-GUIDE-TH.md)
 
 Web UI ใช้ภาษาไทยเป็นหลักตั้งแต่ V3.2 โดยคงชื่อมาตรฐาน คำเทคนิค ค่า JSON และ confirmation phrase ภาษาอังกฤษไว้ในวงเล็บหรือรูปแบบเดิม เพื่อให้อ่านเข้าใจง่ายโดยไม่ทำให้ protocol การทดสอบเปลี่ยนความหมาย
+
+## สถานะที่ยืนยันกับ build ปัจจุบัน
+
+ผลด้านล่างมาจาก clean clone และ Docker Compose runtime test เมื่อ 2026-08-23 ไม่ใช่การรับรองว่า API เป้าหมายทุกระบบจะสแกนได้ครบหรือปราศจากช่องโหว่:
+
+| รายการ | ผลที่ยืนยันแล้ว |
+| --- | --- |
+| Web typecheck, unit tests และ production build | PASS, 56/56 tests |
+| Scanner unit tests | PASS, 69/69 tests |
+| Semgrep configuration | PASS, 12 rules valid |
+| Compose runtime | PASS, 4/4 services healthy |
+| Web / Demo Portal / removed login route | HTTP 200 / HTTP 200 / HTTP 404 |
+| Demo API contract | PASS, 9/9 tests |
+| Runtime flows บน Demo Lab | Quick, BOLA, BFLA, Mutation และ Workflow ทำงานครบ |
+| Source fixtures | vulnerable 12 findings, safe 0 findings |
+
+Remote Safe Mutation ผ่าน unit/integration guard checks แต่ยังไม่ได้ยืนยัน success path กับ external HTTPS staging target จริง เพราะต้องมี target ที่วาง ownership challenge และ disposable `/__ac_test__/` API โดยเจ้าของระบบก่อน
 
 ## สิ่งที่ตรวจได้
 
@@ -75,27 +94,57 @@ JSON-login adapter รับเฉพาะ same-origin relative path และ 
 
 เมื่อ report จบหรือ error สามารถดาวน์โหลด `.html` และ `.pdf` จากหน้า report ได้ HTML รองรับ Unicode ผ่าน browser ส่วน PDF ใช้ฟอนต์มาตรฐานและแทนอักขระที่ฟอนต์ไม่รองรับด้วย `?`
 
-## วิธีรันบน Windows
+## เริ่มใช้งานบน Windows
 
-ต้องมี Docker Desktop และ Docker Compose V2 จากนั้นดับเบิลคลิก [run.bat](run.bat)
+สิ่งที่ต้องมีสำหรับการใช้งานปกติ:
+
+- Windows 10/11
+- Docker Desktop ที่เปิดใช้งานอยู่
+- Docker Compose V2 ซึ่งมากับ Docker Desktop รุ่นปัจจุบัน
+- Git สำหรับ clone repository
+
+Node.js ไม่จำเป็นสำหรับ Quick Start แต่ต้องมี Node.js 20 พร้อม npm เมื่อต้องการรัน `SelfTest` หรือ Web tests บน host
+
+วิธีเร็วที่สุดจาก PowerShell:
+
+```powershell
+git clone https://github.com/Fokkio/api-ac-scanner.git
+Set-Location api-ac-scanner
+.\run.bat QuickStart
+```
+
+Quick Start จะสร้างหรือซ่อม `.env`, สุ่ม `SESSION_SECRET` และ `SCANNER_INTERNAL_TOKEN`, build images, รอ Web/Scanner healthy แล้วเปิด <http://127.0.0.1:3000> ให้อัตโนมัติ ระบบไม่มีหน้า login และต้องเปิดผ่าน loopback address นี้เท่านั้น
+
+เมื่อต้องการหยุดและลบ containers โดยเก็บข้อมูลรายงานไว้:
+
+```powershell
+.\run.bat Stop
+```
+
+สามารถดับเบิลคลิก [run.bat](run.bat) เพื่อใช้เมนูได้เช่นกัน:
+
+| ปุ่ม | การทำงาน |
+| --- | --- |
+| `1 Setup` | สร้าง/ซ่อม `.env` แล้วเปิดใน Notepad |
+| `2 Quick Start` | build, start, รอ health และเปิด Web UI |
+| `3 Start` | start จาก images ที่มีอยู่และรอ health |
+| `4 Rebuild` | build ใหม่และ recreate services |
+| `5 Stop` | หยุดและลบ containers ของทั้ง normal/demo profile |
+| `6 Status` | แสดงสถานะและ health ของ containers |
+| `7 Logs` | แสดง log ล่าสุดของ services |
+| `8 Open` | เปิด Web UI |
+| `9 Demo Lab` | เปิด Scanner, Order Portal และ PostgreSQL fixture |
 
 `run.bat` เป็น launcher ขนาดเล็ก ส่วนเมนูทำงานใน `scripts/run.ps1` ซึ่ง PowerShell โหลดเข้า memory ตั้งแต่เริ่ม จึงไม่มี batch label ที่เสียหายเมื่อไฟล์ถูกอัปเดตระหว่างเปิดหน้าต่าง
-
-1. เลือก `2 Quick Start` ระบบจะสร้าง `.env`, สุ่ม secret, build, start และรอจน Web/Scanner healthy
-2. Browser จะเปิด <http://127.0.0.1:3000> ให้อัตโนมัติและใช้งานได้ทันทีโดยไม่มีหน้า login
-3. ถ้าต้องการเฉพาะการ start image เดิมโดยไม่ build ให้เลือก `3 Start`
-
-เลือก `1 Setup` เมื่อต้องการเปิดดูหรือแก้ `.env` ภายหลัง ถ้ามี placeholder ค้าง ระบบจะเติมเฉพาะค่านั้นและรักษาค่าที่ตั้งไว้แล้วทั้งหมด
 
 หรือใช้ PowerShell:
 
 ```powershell
-Copy-Item .env.example .env
-notepad .env
-docker compose up -d --build
+.\run.bat GenerateEnv
+docker compose up -d --build --wait --wait-timeout 180
 ```
 
-ตรวจ runtime แบบเต็มได้ด้วย `run.bat SelfTest`; คำสั่งนี้ build Demo profile, รอ 4 services healthy, ตรวจ HTTP/port binding, รัน Demo API contract tests แล้วปิด test containers ให้อัตโนมัติ
+ตรวจ runtime แบบเต็มได้ด้วย `.\run.bat SelfTest`; คำสั่งนี้ build Demo profile, รอ 4 services healthy, ตรวจ HTTP/port binding, รัน Demo API contract tests แล้วสั่งปิดและลบ stack ให้อัตโนมัติ คำสั่งนี้ต้องใช้ Node.js/npm บน host สำหรับ contract tests และไม่ควรรันระหว่างที่ต้องการเปิด stack เดิมค้างไว้
 
 Web UI เปิดเฉพาะ `127.0.0.1:3000` และ scanner service ไม่ publish port ออกมาที่ host เมื่อเปิด profile `demo` จะมี Order Portal เพิ่มที่ `127.0.0.1:4100`
 
@@ -105,7 +154,7 @@ Compose project name คือ `api-ac-scanner-v32` เพื่อให้ con
 
 Demo Lab เป็น Order Approval Portal แบบ disposable มีหน้าเว็บ, PostgreSQL, ผู้ใช้สาม role และ test resources ใต้ `/__ac_test__/` ใช้ credential ด้านล่างเฉพาะในเครื่องนี้และห้ามนำไปใช้กับระบบจริง
 
-1. ใน `run.bat` เลือก `9 Demo Lab`
+1. รัน `.\run.bat Demo` หรือเปิดเมนูแล้วเลือก `9 Demo Lab`
 2. เปิด portal ที่ `http://127.0.0.1:4100` และ scanner ที่ `http://127.0.0.1:3000`
 3. เข้า scanner UI แล้วกด `เพิ่ม Demo API อัตโนมัติ` หรือเพิ่ม asset `http://host.docker.internal:4100` ซึ่งจะ verified อัตโนมัติเพราะอยู่ใน local allowlist
 4. ใช้บัญชี fixture:
@@ -160,12 +209,19 @@ REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS=
 
 ## ตรวจโค้ดและ test
 
+Launcher regression บน Windows:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run.tests.ps1
+```
+
 Web:
 
 ```powershell
 Set-Location web
-npm.cmd ci --ignore-scripts
+npm.cmd ci
 npm.cmd run check
+Set-Location ..
 ```
 
 Scanner ใช้ Docker เพื่อให้ dependency ตรงกับ image:
@@ -176,17 +232,32 @@ docker compose run --rm scanner python -m unittest discover -s tests -v
 docker compose run --rm scanner semgrep scan --config semgrep_rules --validate
 ```
 
+Compose end-to-end smoke test ซึ่งใช้ชุดเดียวกับ CI:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run.compose-smoke.ps1
+```
+
+Smoke test จะสร้าง `.env` ที่จำเป็น, build/start Demo profile, ตรวจ 4 services, loopback port binding, HTTP runtime และ contract tests แล้วสั่ง `docker compose down` เสมอ หากต้องการเก็บ containers ไว้ตรวจต่อให้เพิ่ม `-KeepRunning`
+
+GitHub Actions รัน 4 jobs บนทุก push/pull request เข้า `main`: Web บน Node.js 20, launcher บน Windows, Scanner บน Python 3.11 และ Docker Compose runtime smoke บน Ubuntu
+
 ## โครงสร้าง
 
 ```text
 api-ac-scanner/
-├── web/                 Express/TypeScript UI, CSRF session, queue, reports
-├── scanner/             FastAPI, bounded HTTP client, Semgrep rules
-├── fixtures/            safe/vulnerable source fixtures and local demo API
-├── docs/                architecture, security and verified evidence
-├── scripts/run.ps1      stable local Docker controller
-├── compose.yaml
-└── run.bat
+├── web/                         Express/TypeScript UI, CSRF session, queue, reports
+├── scanner/                     FastAPI, bounded HTTP client, Semgrep rules
+├── fixtures/                    safe/vulnerable source fixtures and Demo Lab
+├── docs/                        architecture, security, guide and test evidence
+├── scripts/run.ps1              launcher entrypoint and menu
+├── scripts/run.actions.ps1      QuickStart/Demo/Stop/SelfTest actions
+├── scripts/run.environment.ps1  safe .env creation and migration
+├── scripts/run.tests.ps1        Windows launcher regression
+├── scripts/run.compose-smoke.ps1 Compose end-to-end runtime check
+├── .github/workflows/ci.yml     Web/Scanner/Windows/Compose CI
+├── compose.yaml                 loopback-only local stack and demo profile
+└── run.bat                      Windows entrypoint
 ```
 
 ## ข้อจำกัดที่ต้องรู้ตามตรง
