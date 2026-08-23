@@ -83,6 +83,9 @@ def _extract_json_document(text: str) -> str:
     non-JSON text.
     """
     decoder = json.JSONDecoder()
+    # Bounded by design: run_source_scan rejects analyzer output larger than
+    # MAX_ANALYZER_OUTPUT_BYTES before this point, so the worst-case scan over
+    # every '{' is limited to a few hundred candidates in practice.
     start = 0
     while True:
         idx = text.find("{", start)

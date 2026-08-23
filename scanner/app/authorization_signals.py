@@ -24,7 +24,7 @@ HTTP_SERVER_ERROR = 500
 # denial/error even when the transport status code looks like success.
 _DENIED_BODY_SIGNALS = (
     "unauthorized", "unauthenticated", "not authorized", "forbidden", "denied", "deny",
-    "not allowed", "permission", "access denied", "auth required",
+    "not allowed", "access denied", "auth required",
     "authentication required", "you do not have", "insufficient",
 )
 

@@ -215,23 +215,23 @@ def _matrix_rows(
     policy_index: dict[tuple[str, str], str],
 ) -> list[dict[str, Any]]:
     rows = [
-        _matrix_row(relative_path, identities[0], policy_index[(relative_path, identities[0].label)], baseline),
-        _matrix_row(relative_path, identities[1], policy_index[(relative_path, identities[1].label)], alternate),
+        _matrix_row(relative_path, identities[0], policy_index[(relative_path, identities[0].label)], baseline, "GET"),
+        _matrix_row(relative_path, identities[1], policy_index[(relative_path, identities[1].label)], alternate, "GET"),
         _matrix_row(
             relative_path, TestIdentity("Anonymous", "anonymous", "", {}),
-            policy_index[(relative_path, "Anonymous")], anonymous,
+            policy_index[(relative_path, "Anonymous")], anonymous, "GET",
         ),
     ]
     return rows
 
 
 def _matrix_row(
-    relative_path: str, identity: TestIdentity, expected: str, response: Any,
+    relative_path: str, identity: TestIdentity, expected: str, response: Any, method: str = "GET",
 ) -> dict[str, Any]:
     from app.authorization_signals import classify_decision
     actual = classify_decision(response.status, response.body)
     return {
-        "method": "GET", "path": relative_path, "identity": identity.label,
+        "method": method, "path": relative_path, "identity": identity.label,
         "role": identity.role, "tenant": identity.tenant, "expected": expected,
         "actual": actual, "actualStatus": response.status,
         "matchesExpectation": actual == expected,
