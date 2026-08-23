@@ -128,7 +128,7 @@ export function loadAppConfig(): AppConfig {
       localMode: readBoolean("LOCAL_MODE", true),
       localAllowedHosts: new Set(readCsv(
         "LOCAL_ALLOWED_HOSTS",
-        "host.docker.internal,localhost,127.0.0.1,::1,demo-api",
+        "host.docker.internal,localhost,127.0.0.1,::1",
       )),
       localAllowedPorts: readPortSet(
         "LOCAL_ALLOWED_PORTS",

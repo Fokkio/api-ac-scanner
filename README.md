@@ -81,9 +81,9 @@ JSON-login adapter รับเฉพาะ same-origin relative path และ 
 
 `run.bat` เป็น launcher ขนาดเล็ก ส่วนเมนูทำงานใน `scripts/run.ps1` ซึ่ง PowerShell โหลดเข้า memory ตั้งแต่เริ่ม จึงไม่มี batch label ที่เสียหายเมื่อไฟล์ถูกอัปเดตระหว่างเปิดหน้าต่าง
 
-1. เลือก `2 Build` ได้ทันที ในครั้งแรกระบบจะสร้าง `.env` และสุ่ม secret ให้เอง
-2. เลือก `3 Start`
-3. เปิด <http://127.0.0.1:3000> แล้วใช้งานได้ทันทีโดยไม่มีหน้า login
+1. เลือก `2 Quick Start` ระบบจะสร้าง `.env`, สุ่ม secret, build, start และรอจน Web/Scanner healthy
+2. Browser จะเปิด <http://127.0.0.1:3000> ให้อัตโนมัติและใช้งานได้ทันทีโดยไม่มีหน้า login
+3. ถ้าต้องการเฉพาะการ start image เดิมโดยไม่ build ให้เลือก `3 Start`
 
 เลือก `1 Setup` เมื่อต้องการเปิดดูหรือแก้ `.env` ภายหลัง ถ้ามี placeholder ค้าง ระบบจะเติมเฉพาะค่านั้นและรักษาค่าที่ตั้งไว้แล้วทั้งหมด
 
@@ -95,9 +95,11 @@ notepad .env
 docker compose up -d --build
 ```
 
+ตรวจ runtime แบบเต็มได้ด้วย `run.bat SelfTest`; คำสั่งนี้ build Demo profile, รอ 4 services healthy, ตรวจ HTTP/port binding, รัน Demo API contract tests แล้วปิด test containers ให้อัตโนมัติ
+
 Web UI เปิดเฉพาะ `127.0.0.1:3000` และ scanner service ไม่ publish port ออกมาที่ host เมื่อเปิด profile `demo` จะมี Order Portal เพิ่มที่ `127.0.0.1:4100`
 
-Compose project name ยังคงเป็น `api-ac-scanner-v31` โดยตั้งใจเพื่อให้ upgrade แทนที่ stack เดิมและไม่ทิ้ง orphan containers; ชื่อนี้ไม่ใช่ product version ที่แสดงใน UI
+Compose project name คือ `api-ac-scanner-v32` เพื่อให้ container/network ของรุ่นนี้มีชื่อคงที่และ cleanup ได้ครบ; ชื่อนี้ตรงกับ product version ที่แสดงใน UI
 
 ## ทดลองกับ Demo Lab
 
@@ -105,7 +107,7 @@ Demo Lab เป็น Order Approval Portal แบบ disposable มีหน้
 
 1. ใน `run.bat` เลือก `9 Demo Lab`
 2. เปิด portal ที่ `http://127.0.0.1:4100` และ scanner ที่ `http://127.0.0.1:3000`
-3. เข้า scanner UI แล้วเพิ่ม asset `http://demo-api:4100` ซึ่งจะ verified อัตโนมัติเพราะอยู่ใน local allowlist
+3. เข้า scanner UI แล้วกด `เพิ่ม Demo API อัตโนมัติ` หรือเพิ่ม asset `http://host.docker.internal:4100` ซึ่งจะ verified อัตโนมัติเพราะอยู่ใน local allowlist
 4. ใช้บัญชี fixture:
 
 ```text
@@ -145,7 +147,7 @@ Alice custom:  {"x-demo-user":"alice","x-demo-secret":"alice-custom-secret-12345
 
 ```text
 LOCAL_MODE=true
-LOCAL_ALLOWED_HOSTS=host.docker.internal,localhost,127.0.0.1,::1,demo-api
+LOCAL_ALLOWED_HOSTS=host.docker.internal,localhost,127.0.0.1,::1
 LOCAL_ALLOWED_PORTS=80,443,3000,4000,4100,5000,8000,8080,8443
 REMOTE_SAFE_MUTATION_ENABLED=false
 REMOTE_SAFE_MUTATION_ALLOWED_ORIGINS=

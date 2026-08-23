@@ -14,25 +14,24 @@
 โฟลเดอร์โปรเจกต์คือ:
 
 ```text
-D:\api-ac-scanner\api-ac-scanner V3.1
+D:\api-ac-scanner\api-ac-scanner V3.2
 ```
 
 ## 2. เปิดระบบครั้งแรก
 
 1. เปิดโฟลเดอร์โปรเจกต์
 2. ดับเบิลคลิก `run.bat`
-3. เลือก `1) Setup`
-4. ระบบจะสร้างหรือเปิดไฟล์ `.env`
-5. ห้ามส่งไฟล์ `.env`, session secret หรือ scanner token ให้ผู้อื่น
-6. กลับมาที่เมนูแล้วเลือก `2) Build`
-7. เมื่อ build สำเร็จ เลือก `3) Start`
-8. เลือก `6) Status` ทุก service ควรแสดงสถานะ healthy
-9. เลือก `8) Open` หรือเปิด `http://127.0.0.1:3000`; Scanner ไม่มีหน้า login
+3. เลือก `2) Quick Start`
+4. ระบบจะสร้าง `.env`, สุ่ม secret, build, start และรอจน Web/Scanner healthy
+5. Browser จะเปิด `http://127.0.0.1:3000` ให้อัตโนมัติ; Scanner ไม่มีหน้า login
+6. ห้ามส่งไฟล์ `.env`, session secret หรือ scanner token ให้ผู้อื่น
+7. ใช้ `1) Setup` เมื่อต้องการเปิดหรือแก้ `.env` ภายหลัง
+8. ใช้ `6) Status` เพื่อตรวจสถานะ และ `7) Logs` เมื่อระบบเริ่มไม่สำเร็จ
 
 คำสั่งทางเลือกสำหรับ PowerShell:
 
 ```powershell
-Set-Location 'D:\api-ac-scanner\api-ac-scanner V3.1'
+Set-Location 'D:\api-ac-scanner\api-ac-scanner V3.2'
 docker compose up -d --build
 docker compose ps
 ```
@@ -93,11 +92,11 @@ Demo Lab คือ Order Approval Portal ที่มีหน้าเว็บ
 2. ในหัวข้อ `Add your local or staging API` กรอก:
 
 ```text
-http://demo-api:4100
+http://host.docker.internal:4100
 ```
 
 3. กด `Add asset`
-4. asset ควรขึ้นสถานะ `Verified` อัตโนมัติ เพราะ `demo-api` อยู่ใน local allowlist
+4. asset ควรขึ้นสถานะ `Verified` อัตโนมัติ เพราะ `host.docker.internal` อยู่ใน local allowlist
 
 อย่าใช้ `http://127.0.0.1:4100` เป็น scanner target ภายใน Docker เพราะ `127.0.0.1` ของ scanner container หมายถึงตัว scanner เอง ไม่ใช่ Order Portal
 
@@ -106,7 +105,7 @@ http://demo-api:4100
 เป้าหมายคือพิสูจน์ว่า Alice อ่าน order #1 ได้ แต่ Bob และ Anonymous ถูกปฏิเสธ
 
 1. เปิด `Authorization lab`
-2. เลือก asset `http://demo-api:4100`
+2. เลือก asset `http://host.docker.internal:4100`
 3. กรอก Object paths:
 
 ```text
@@ -167,7 +166,7 @@ Matrix ควรเป็น Match `6/6`
 เป้าหมายคือพิสูจน์ว่า Admin ใช้ admin report ได้ แต่ Alice และ Anonymous ถูกปฏิเสธ
 
 1. เปิด `Authorization lab`
-2. เลือก asset `http://demo-api:4100`
+2. เลือก asset `http://host.docker.internal:4100`
 3. Object paths:
 
 ```text
@@ -213,7 +212,7 @@ alice-bearer-token-1234567890
 Mutation โหมดเดี่ยวทดสอบเฉพาะการสร้างและ cleanup resource เดียว
 
 1. เปิดเมนู `Safe mutation`
-2. เลือก asset `http://demo-api:4100`
+2. เลือก asset `http://host.docker.internal:4100`
 3. Dedicated test path:
 
 ```text
@@ -252,7 +251,7 @@ MUTATE TEST RESOURCE
 ตัวอย่างนี้ใช้ JSON-login adapter เพื่อให้ scanner login, รับ token ใน memory แล้วรัน workflow ห้าขั้น
 
 1. เปิดเมนู `Workflow`
-2. เลือก asset `http://demo-api:4100`
+2. เลือก asset `http://host.docker.internal:4100`
 3. Identity label ใส่ `Alice JSON login`
 4. Role ใส่ `owner`
 5. Tenant ใส่ `tenant-a`
@@ -400,7 +399,7 @@ Credential, password และ token ไม่ควรปรากฏใน rep
 คำสั่งทางเลือก:
 
 ```powershell
-Set-Location 'D:\api-ac-scanner\api-ac-scanner V3.1'
+Set-Location 'D:\api-ac-scanner\api-ac-scanner V3.2'
 docker compose --profile demo down --remove-orphans
 ```
 
@@ -424,7 +423,7 @@ docker compose --profile demo down --remove-orphans
 - asset ต้องเป็น `Verified`
 - target ต้องอยู่ใน `LOCAL_ALLOWED_HOSTS`
 - port ต้องอยู่ใน `LOCAL_ALLOWED_PORTS`
-- สำหรับ Docker Demo Lab ต้องใช้ `http://demo-api:4100`
+- สำหรับ Docker Demo Lab ให้ใช้ `http://host.docker.internal:4100`
 - remote asset ต้องเปิด `REMOTE_SAFE_MUTATION_ENABLED=true`, อยู่ใน exact origin allowlist และมี verification method จากการ verify รอบใหม่
 
 ### รายงานขึ้น Error

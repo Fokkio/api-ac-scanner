@@ -8,7 +8,7 @@ on:
 
 jobs:
   web:
-    name: Web (Node 24 + TypeScript)
+    name: Web (Node 20 + TypeScript)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -17,17 +17,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "20"
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - name: Typecheck
-        run: npx tsc -p tsconfig.json --noEmit
-      - name: Unit tests
-        run: npm test
+      - name: Typecheck, unit tests and production build
+        run: npm run check
+
+  launcher:
+    name: Windows launcher regression
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Environment migration and action registry
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run.tests.ps1
 
   scanner:
-    name: Scanner (Python 3.13)
+    name: Scanner (Python 3.11)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,62 +43,25 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scanner/requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install -r requirements.txt
       - name: Unit tests
-        run: python -m pytest tests/ -q
+        run: python -m unittest discover -s tests -v
+      - name: Validate Semgrep rules
+        run: semgrep scan --config semgrep_rules --validate
 
-  smoke:
-    name: Integration smoke (source scan + live target)
+  compose-smoke:
+    name: Docker Compose runtime smoke
     runs-on: ubuntu-latest
-    needs: [web, scanner]
+    needs: [web, launcher, scanner]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: Install scanner deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r scanner/requirements.txt
-      # Source-scan the scanner's own codebase (public, same-repo) to prove the
-      # static engine runs end-to-end. Cloning the same repo the workflow runs in
-      # avoids needing cross-repo credentials.
-      - name: Source scan api-ac-scanner (public same-repo)
-        env:
-          UPLOAD_ROOT: /tmp/uploads
-        run: |
-          mkdir -p /tmp/uploads
-          git clone --depth 1 https://github.com/Fokkio/api-ac-scanner.git /tmp/uploads/api-ac-scanner
-          python - <<'PY'
-          import sys
-          sys.path.insert(0, "scanner")
-          from app.source_scan import run_source_scan
-          try:
-              result = run_source_scan("/tmp/uploads/api-ac-scanner")
-              findings = result.get("findings", [])
-              print(f"SOURCE_SCAN_OK findings={len(findings)}")
-          except Exception as exc:  # pragma: no cover - defensive smoke guard
-              print(f"SOURCE_SCAN_SKIPPED reason={exc}")
-          PY
-      # Reachability quick scan against the live portfolio to prove outbound engine works.
-      - name: Quick scan https://www.f0kki0.me/
-        run: |
-          python - <<'PY'
-          import asyncio, sys
-          sys.path.insert(0, "scanner")
-          from app.policy import validate_public_target
-          from app.outbound import BoundedHttpClient
-          async def main():
-              try:
-                  target = await validate_public_target("https://www.f0kki0.me/")
-                  async with await BoundedHttpClient.create("https://www.f0kki0.me/") as client:
-                      resp = await client.request_target("GET")
-                      print(f"QUICK_SCAN_OK status={resp.status} bytes={len(resp.body)}")
-              except Exception as exc:  # pragma: no cover - network-dependent smoke
-                  print(f"QUICK_SCAN_SKIPPED reason={exc}")
-          asyncio.run(main())
-          PY
+      - name: Build, wait for health and verify HTTP runtime
+        shell: pwsh
+        run: ./scripts/run.compose-smoke.ps1

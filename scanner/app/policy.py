@@ -13,7 +13,7 @@ from app.errors import PolicyError
 
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 ALLOWED_PORTS = frozenset({80, 443})
-DEFAULT_LOCAL_HOSTS = "host.docker.internal,localhost,127.0.0.1,::1,demo-api"
+DEFAULT_LOCAL_HOSTS = "host.docker.internal,localhost,127.0.0.1,::1"
 DEFAULT_LOCAL_PORTS = "80,443,3000,4000,4100,5000,8000,8080,8443"
 MAX_URL_LENGTH = 2048
 MAX_PATH_LENGTH = 512

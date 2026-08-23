@@ -26,6 +26,28 @@ function Invoke-Compose {
     return [int]$LASTEXITCODE
 }
 
+function Show-ComposeFailureDiagnostics {
+    param([string[]]$ProfileArguments = @())
+
+    Write-Host "`n[!] Container status:" -ForegroundColor Yellow
+    & docker compose @ProfileArguments ps | Out-Host
+    Write-Host "`n[!] Recent service logs:" -ForegroundColor Yellow
+    & docker compose @ProfileArguments logs --no-color --tail 80 | Out-Host
+}
+
+function Invoke-HealthyComposeUp {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [string[]]$ProfileArguments = @()
+    )
+
+    $code = Invoke-Compose -Arguments @($ProfileArguments + $Arguments + @('--wait', '--wait-timeout', '180'))
+    if ($code -ne 0) {
+        Show-ComposeFailureDiagnostics -ProfileArguments $ProfileArguments
+    }
+    return $code
+}
+
 function Invoke-BuildAction {
     Write-Host "[*] Building V$Version images..."
     $code = Invoke-Compose -Arguments @('build')
@@ -37,13 +59,25 @@ function Invoke-BuildAction {
     return $code
 }
 
+function Invoke-QuickStartAction {
+    Write-Host "[*] Building and starting V$Version local stack..."
+    $code = Invoke-HealthyComposeUp -Arguments @('up', '-d', '--build')
+    if ($code -ne 0) {
+        Write-Host '[!] Quick Start failed. Review the status and logs above.' -ForegroundColor Red
+        return $code
+    }
+    Write-Host '[+] Scanner is healthy. Opening http://127.0.0.1:3000' -ForegroundColor Green
+    Start-Process 'http://127.0.0.1:3000'
+    return 0
+}
+
 function Invoke-StartAction {
     Write-Host "[*] Starting V$Version local stack..."
-    $code = Invoke-Compose -Arguments @('up', '-d')
+    $code = Invoke-HealthyComposeUp -Arguments @('up', '-d')
     if ($code -eq 0) {
         Write-Host '[+] Started. Open http://127.0.0.1:3000' -ForegroundColor Green
     } else {
-        Write-Host '[!] Start failed. Review the error above.' -ForegroundColor Red
+        Write-Host '[!] Start failed. Review the status and logs above.' -ForegroundColor Red
     }
     return $code
 }
@@ -55,11 +89,11 @@ function Invoke-RebuildAction {
         Write-Host '[!] Rebuild failed. Existing containers were not recreated.' -ForegroundColor Red
         return $code
     }
-    $code = Invoke-Compose -Arguments @('up', '-d', '--force-recreate')
+    $code = Invoke-HealthyComposeUp -Arguments @('up', '-d', '--force-recreate')
     if ($code -eq 0) {
         Write-Host '[+] Rebuild and restart completed.' -ForegroundColor Green
     } else {
-        Write-Host '[!] Images built, but container recreation failed.' -ForegroundColor Red
+        Write-Host '[!] Images built, but healthy container recreation failed.' -ForegroundColor Red
     }
     return $code
 }
@@ -83,11 +117,27 @@ function Invoke-StopAction {
 function Invoke-DemoAction {
     Write-Host '[!] Demo credentials and data are disposable and must never be reused outside this local profile.' -ForegroundColor Yellow
     Write-Host "[*] Starting V$Version with the database-backed Order Portal profile..."
-    $code = Invoke-Compose -Arguments @('--profile', 'demo', 'up', '-d', '--build')
+    $profileArguments = @('--profile', 'demo')
+    $code = Invoke-HealthyComposeUp -ProfileArguments $profileArguments -Arguments @('up', '-d', '--build')
     if ($code -eq 0) {
-        Write-Host '[+] Demo lab started. Portal: http://127.0.0.1:4100 / Scanner target: http://demo-api:4100' -ForegroundColor Green
+        Write-Host '[+] Demo lab is healthy. Portal: http://127.0.0.1:4100 / Scanner target: http://host.docker.internal:4100' -ForegroundColor Green
+        Write-Host '[+] In Scanner, click "เพิ่ม Demo API อัตโนมัติ" to create the verified demo asset.' -ForegroundColor Green
+        Start-Process 'http://127.0.0.1:3000/dashboard'
+        Start-Process 'http://127.0.0.1:4100'
     } else {
-        Write-Host '[!] Demo lab startup failed. Review the error above.' -ForegroundColor Red
+        Write-Host '[!] Demo lab startup failed. Review the status and logs above.' -ForegroundColor Red
+    }
+    return $code
+}
+
+function Invoke-SelfTestAction {
+    Write-Host "[*] Running V$Version Docker Compose runtime smoke test..."
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'run.compose-smoke.ps1') | Out-Host
+    $code = [int]$LASTEXITCODE
+    if ($code -eq 0) {
+        Write-Host '[+] SelfTest completed successfully.' -ForegroundColor Green
+    } else {
+        Write-Host '[!] SelfTest failed. Review the evidence above.' -ForegroundColor Red
     }
     return $code
 }
@@ -117,7 +167,7 @@ function Invoke-ControlAction {
 }
 $ControlActions = @(
     [pscustomobject]@{ Name = 'Setup'; Key = '1'; Label = 'Setup    - create, repair, or edit .env'; RequiresDocker = $false; Handler = { param($name) Invoke-EnvironmentAction -SelectedAction $name } }
-    [pscustomobject]@{ Name = 'Build'; Key = '2'; Label = 'Build    - auto-setup on first run, then build images'; RequiresDocker = $true; Handler = { Invoke-BuildAction } }
+    [pscustomobject]@{ Name = 'QuickStart'; Key = '2'; Label = 'Quick Start - build, start, wait for health, then open'; RequiresDocker = $true; Handler = { Invoke-QuickStartAction } }
     [pscustomobject]@{ Name = 'Start'; Key = '3'; Label = 'Start    - start the complete stack'; RequiresDocker = $true; Handler = { Invoke-StartAction } }
     [pscustomobject]@{ Name = 'Rebuild'; Key = '4'; Label = 'Rebuild  - rebuild both services and restart'; RequiresDocker = $true; Handler = { Invoke-RebuildAction } }
     [pscustomobject]@{ Name = 'Stop'; Key = '5'; Label = "Stop     - stop and remove V$Version containers"; RequiresDocker = $true; Handler = { Invoke-StopAction } }
@@ -126,6 +176,8 @@ $ControlActions = @(
     [pscustomobject]@{ Name = 'Open'; Key = '8'; Label = 'Open     - open http://127.0.0.1:3000'; RequiresDocker = $false; Handler = { Start-Process 'http://127.0.0.1:3000'; return 0 } }
     [pscustomobject]@{ Name = 'Demo'; Key = '9'; Label = 'Demo Lab - start the disposable multi-role Order Portal'; RequiresDocker = $true; Handler = { Invoke-DemoAction } }
     [pscustomobject]@{ Name = 'Exit'; Key = '0'; Label = 'Exit'; RequiresDocker = $false; Handler = { return 0 } }
+    [pscustomobject]@{ Name = 'Build'; Key = $null; Label = $null; RequiresDocker = $true; Handler = { Invoke-BuildAction } }
+    [pscustomobject]@{ Name = 'SelfTest'; Key = $null; Label = $null; RequiresDocker = $true; Handler = { Invoke-SelfTestAction } }
     [pscustomobject]@{ Name = 'GenerateEnv'; Key = $null; Label = $null; RequiresDocker = $false; Handler = { param($name) Invoke-EnvironmentAction -SelectedAction $name } }
 )
 $ControlActionsByName = @{}

@@ -16,6 +16,14 @@
       <input id="origin" name="origin" type="url" required placeholder="http://host.docker.internal:4100" />
       <button type="submit">เพิ่ม API</button>
     </form>
+    <% if (localMode) { %>
+      <form class="inline-form" action="/assets" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <input type="hidden" name="origin" value="http://host.docker.internal:4100" />
+        <span class="muted">เปิด Demo Lab จากเมนู 9 ก่อน แล้วเพิ่มเป้าหมายตัวอย่างได้ทันที</span>
+        <button class="secondary-button" type="submit">เพิ่ม Demo API อัตโนมัติ</button>
+      </form>
+    <% } %>
   </section>
 
   <section class="asset-list" aria-label="API ที่ตั้งค่าไว้">

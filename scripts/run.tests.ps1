@@ -16,10 +16,10 @@ SCANNER_INTERNAL_TOKEN=keep-this-scanner-token
     if ($migratedEnvironment -match '(?m)^(ADMIN_USERNAME|ADMIN_PASSWORD|PUBLIC_BASE_URL|SESSION_COOKIE_SECURE)=') {
         throw 'Deprecated login or deployment settings remain after migration.'
     }
-    if ($migratedEnvironment -notmatch '(?m)^SESSION_SECRET=keep-this-session-secret$') {
+    if ($migratedEnvironment -notmatch '(?m)^SESSION_SECRET=keep-this-session-secret\r?$') {
         throw 'SESSION_SECRET was not preserved.'
     }
-    if ($migratedEnvironment -notmatch '(?m)^SCANNER_INTERNAL_TOKEN=keep-this-scanner-token$') {
+    if ($migratedEnvironment -notmatch '(?m)^SCANNER_INTERNAL_TOKEN=keep-this-scanner-token\r?$') {
         throw 'SCANNER_INTERNAL_TOKEN was not preserved.'
     }
 
@@ -39,7 +39,7 @@ SCANNER_INTERNAL_TOKEN=replace-with-another-long-random-secret
     if ($generated -match '(?m)^(ADMIN_USERNAME|ADMIN_PASSWORD)=' -or $generated -match 'replace-with-') {
         throw 'Generated environment contains deprecated settings or placeholders.'
     }
-    $expectedActions = @('Setup', 'Build', 'Start', 'Rebuild', 'Stop', 'Status', 'Logs', 'Open', 'Demo', 'Exit', 'GenerateEnv')
+    $expectedActions = @('Setup', 'QuickStart', 'Build', 'Start', 'Rebuild', 'Stop', 'Status', 'Logs', 'Open', 'Demo', 'Exit', 'SelfTest', 'GenerateEnv')
     if ($ControlActionsByName.Count -ne $expectedActions.Count) {
         throw 'Launcher action registry contains missing or duplicate names.'
     }
@@ -51,6 +51,9 @@ SCANNER_INTERNAL_TOKEN=replace-with-another-long-random-secret
     $menuKeys = @($ControlActions | Where-Object { $null -ne $_.Key } | ForEach-Object { $_.Key })
     if (($menuKeys | Select-Object -Unique).Count -ne $menuKeys.Count) {
         throw 'Launcher action registry contains duplicate menu keys.'
+    }
+    if ($ControlActionsByName['QuickStart'].Key -ne '2' -or $ControlActionsByName['Build'].Key -ne $null) {
+        throw 'Quick Start must own menu key 2 while Build remains available as a command action.'
     }
     Write-Output 'Launcher environment migration PASS'
 } finally {
